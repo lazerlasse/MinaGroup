@@ -1,0 +1,29 @@
+version: "3.8"
+
+services:
+  backend:
+    build:
+      context: ./MinaGroup.Backend
+    ports:
+      - "5000:8080"
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Development
+      - ConnectionStrings__DefaultConnection=server=db;port=3306;database=minagroupdb;user=root;password=rootpass
+      - Jwt__Key=SuperSecretKey123456!
+      - Jwt__Issuer=MinaGroupBackend
+    depends_on:
+      - db
+
+  db:
+    image: mysql:8
+    restart: always
+    environment:
+      MYSQL_ROOT_PASSWORD: rootpass
+      MYSQL_DATABASE: minagroupdb
+    ports:
+      - "3306:3306"
+    volumes:
+      - mysql_data:/var/lib/mysql
+
+volumes:
+  mysql_data:

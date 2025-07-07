@@ -1,0 +1,5 @@
+services:
+  backend:
+    environment:
+      - Admin__Email=admin@minagroup.dk
+      - Admin__Password=StrongPassword123!

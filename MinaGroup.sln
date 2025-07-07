@@ -1,0 +1,40 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 17
+VisualStudioVersion = 17.14.36221.1
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "MinaGroup.Backend", "MinaGroup.Backend\MinaGroup.Backend.csproj", "{17C64F21-1FFE-4E8F-9996-948240B05BF9}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "MinaGroupApp", "MinaGroupApp\MinaGroupApp.csproj", "{B921F670-4440-164D-104E-EBE7426D2198}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution Items", "{8EC462FD-D22E-90A8-E5CE-7E832BA40C5D}"
+	ProjectSection(SolutionItems) = preProject
+		.env = .env
+		docker-compose.override.yml = docker-compose.override.yml
+		docker-compose.yml = docker-compose.yml
+	EndProjectSection
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{17C64F21-1FFE-4E8F-9996-948240B05BF9}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{17C64F21-1FFE-4E8F-9996-948240B05BF9}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{17C64F21-1FFE-4E8F-9996-948240B05BF9}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{17C64F21-1FFE-4E8F-9996-948240B05BF9}.Release|Any CPU.Build.0 = Release|Any CPU
+		{B921F670-4440-164D-104E-EBE7426D2198}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{B921F670-4440-164D-104E-EBE7426D2198}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{B921F670-4440-164D-104E-EBE7426D2198}.Debug|Any CPU.Deploy.0 = Debug|Any CPU
+		{B921F670-4440-164D-104E-EBE7426D2198}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{B921F670-4440-164D-104E-EBE7426D2198}.Release|Any CPU.Build.0 = Release|Any CPU
+		{B921F670-4440-164D-104E-EBE7426D2198}.Release|Any CPU.Deploy.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {AB267FF4-08DF-4252-B160-D32585E37F16}
+	EndGlobalSection
+EndGlobal
