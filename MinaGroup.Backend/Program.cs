@@ -4,24 +4,29 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using MinaGroup.Backend.Data;
 using MinaGroup.Backend.Models;
-using MinaGroup.Backend.Infrastructure.Identity; // Husk at inkludere denne
+using MinaGroup.Backend.Infrastructure.Identity;
 using System.Text;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// Configuration & connection string
+// Hent connection string
 var connStr = builder.Configuration.GetConnectionString("DefaultConnection");
 
-// DB context
+// DbContext med retry-policies
 builder.Services.AddDbContext<AppDbContext>(options =>
-    options.UseMySql(connStr, ServerVersion.AutoDetect(connStr)));
+    options.UseMySql(connStr, ServerVersion.AutoDetect(connStr), mysqlOptions =>
+    {
+        mysqlOptions.EnableRetryOnFailure(5, TimeSpan.FromSeconds(30), null);
+    }));
 
-// Identity setup
+builder.Services.AddDefaultIdentity<AppUser>(options => options.SignIn.RequireConfirmedAccount = true).AddEntityFrameworkStores<AppDbContext>();
+
+// Identity
 builder.Services.AddIdentity<AppUser, IdentityRole>()
     .AddEntityFrameworkStores<AppDbContext>()
     .AddDefaultTokenProviders();
 
-// JWT authentication (valgfri, men klar til MAUI API-login)
+// JWT
 var jwtKey = builder.Configuration["Jwt:Key"];
 var jwtIssuer = builder.Configuration["Jwt:Issuer"];
 
@@ -43,20 +48,30 @@ builder.Services.AddAuthentication(options =>
     };
 });
 
-// Razor Pages og API Controllers
 builder.Services.AddRazorPages();
 builder.Services.AddControllers();
 
 var app = builder.Build();
 
-// Kør DataSeeder for adminbruger
+// Migration & seeding
 using (var scope = app.Services.CreateScope())
 {
     var services = scope.ServiceProvider;
-    await DataSeeder.SeedAdminUserAsync(services);
+    var logger = services.GetRequiredService<ILogger<Program>>();
+
+    try
+    {
+        var context = services.GetRequiredService<AppDbContext>();
+        context.Database.Migrate();
+
+        await DataSeeder.SeedAdminUserAsync(services);
+    }
+    catch (Exception ex)
+    {
+        logger.LogError(ex, "An error occurred during migration or seeding.");
+    }
 }
 
-// Middleware pipeline
 app.UseHttpsRedirection();
 app.UseStaticFiles();
 
