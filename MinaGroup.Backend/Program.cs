@@ -1,15 +1,19 @@
+using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Identity;
+using Microsoft.AspNetCore.Identity.UI.Services;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using MinaGroup.Backend.Data;
-using MinaGroup.Backend.Models;
 using MinaGroup.Backend.Infrastructure.Identity;
+using MinaGroup.Backend.Models;
+using MinaGroup.Backend.Options;
+using MinaGroup.Backend.Services;
 using System.Text;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// Hent connection string
+// Connection string
 var connStr = builder.Configuration.GetConnectionString("DefaultConnection");
 
 // DbContext med retry-policies
@@ -19,21 +23,48 @@ builder.Services.AddDbContext<AppDbContext>(options =>
         mysqlOptions.EnableRetryOnFailure(5, TimeSpan.FromSeconds(30), null);
     }));
 
-builder.Services.AddDefaultIdentity<AppUser>(options => options.SignIn.RequireConfirmedAccount = true).AddEntityFrameworkStores<AppDbContext>();
 
 // Identity
 builder.Services.AddIdentity<AppUser, IdentityRole>()
     .AddEntityFrameworkStores<AppDbContext>()
     .AddDefaultTokenProviders();
 
-// JWT
+// Identity options
+builder.Services.Configure<IdentityOptions>(options =>
+{
+    // Password
+    options.Password.RequireDigit = true;
+    options.Password.RequireLowercase = true;
+    options.Password.RequireUppercase = true;
+    options.Password.RequireNonAlphanumeric = false;
+    options.Password.RequiredLength = 6;
+    options.Password.RequiredUniqueChars = 1;
+
+    // Lockout
+    options.Lockout.DefaultLockoutTimeSpan = TimeSpan.FromMinutes(5);
+    options.Lockout.MaxFailedAccessAttempts = 5;
+    options.Lockout.AllowedForNewUsers = true;
+
+    // User
+    options.User.AllowedUserNameCharacters = "abcdefghijklmnopqrstuvwxyz���ABCDEFGHIJKLMNOPQRSTUVWXYZ���0123456789-._@+ ";
+    options.User.RequireUniqueEmail = true;
+});
+
+// JWT-konfiguration
 var jwtKey = builder.Configuration["Jwt:Key"];
 var jwtIssuer = builder.Configuration["Jwt:Issuer"];
 
+// Autentificering: b�de Cookie og JWT
 builder.Services.AddAuthentication(options =>
 {
-    options.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
+    options.DefaultScheme = CookieAuthenticationDefaults.AuthenticationScheme;
     options.DefaultChallengeScheme = JwtBearerDefaults.AuthenticationScheme;
+})
+.AddCookie(options =>
+{
+    options.LoginPath = "/Account/Login";
+    options.LogoutPath = "/Account/Logout";
+    options.ExpireTimeSpan = TimeSpan.FromDays(14);
 })
 .AddJwtBearer(options =>
 {
@@ -48,12 +79,20 @@ builder.Services.AddAuthentication(options =>
     };
 });
 
-builder.Services.AddRazorPages();
+// Add Email service.
+builder.Services.AddTransient<IEmailSender, EmailSender>();
+builder.Services.Configure<AuthMessageSenderOptions>(authMessageSenderOptions =>
+{
+    authMessageSenderOptions.SendGridKey = builder.Configuration["SendGrid:SendGridKey"];
+});
+
+// MVC og Razor Pages
 builder.Services.AddControllers();
+builder.Services.AddRazorPages();
 
 var app = builder.Build();
 
-// Migration & seeding
+// Migration og seeding
 using (var scope = app.Services.CreateScope())
 {
     var services = scope.ServiceProvider;
@@ -74,13 +113,12 @@ using (var scope = app.Services.CreateScope())
 
 app.UseHttpsRedirection();
 app.UseStaticFiles();
-
 app.UseRouting();
 
 app.UseAuthentication();
 app.UseAuthorization();
 
-app.MapRazorPages();
 app.MapControllers();
+app.MapRazorPages();
 
 app.Run();

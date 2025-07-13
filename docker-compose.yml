@@ -4,10 +4,12 @@ services:
       context: ./MinaGroup.Backend
     ports:
       - "5000:8080"
+    env_file:
+      - .env
     environment:
       - ASPNETCORE_ENVIRONMENT=Development
       - MYSQL_HOST=${DB_HOST}
-      - MYSQL_PORT=${DB_PORT}
+      - MYSQL_PORT=${SQL_PORT}
       - MYSQL_USER=${DB_USER}
       - MYSQL_PASSWORD=${DB_PASSWORD}
       - MYSQL_NAME=${DB_NAME}

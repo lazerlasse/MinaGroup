@@ -33,6 +33,7 @@ namespace MinaGroup.Backend.Infrastructure.Identity
 
                 adminUser = new AppUser
                 {
+                    FirstName = "Administrator",
                     UserName = adminEmail,
                     Email = adminEmail,
                     EmailConfirmed = true

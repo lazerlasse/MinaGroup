@@ -1,4 +1,4 @@
 services:
     backend:
         environment:
-            - ConnectionStrings__DefaultConnection=Server=${DB_HOST};Port=${DB_PORT};Database=${DB_NAME};User=${DB_USER};Password=${DB_PASSWORD}
+            - ConnectionStrings__DefaultConnection=Server=${DB_HOST};Port=${SQL_PORT};Database=${DB_NAME};User=${DB_USER};Password=${DB_PASSWORD}
