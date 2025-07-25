@@ -13,8 +13,6 @@ services:
       - MYSQL_USER=${DB_USER}
       - MYSQL_PASSWORD=${DB_PASSWORD}
       - MYSQL_NAME=${DB_NAME}
-      - Jwt__Key=${JWT_KEY}
-      - Jwt__Issuer=${JWT_ISSUER}
       - TZ=Europe/Copenhagen
     depends_on:
       - ${DB_HOST}

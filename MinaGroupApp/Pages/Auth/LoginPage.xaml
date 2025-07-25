@@ -1,0 +1,63 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage
+    xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+    xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+    xmlns:toolkit="http://schemas.microsoft.com/dotnet/2022/maui/toolkit"
+    xmlns:vm="clr-namespace:MinaGroupApp.ViewModels.Auth"
+    x:Class="MinaGroupApp.Pages.LoginPage"
+    x:DataType="vm:LoginViewModel"
+    Title="{Binding Title}">
+
+    <Grid
+        RowDefinitions="*,*,*"
+        ColumnDefinitions="*"
+        Margin="10">
+
+        <VerticalStackLayout
+            Grid.Row="1"
+            Grid.Column="0"
+            Margin="50,0,50,0"
+            Spacing="10">
+
+            <Entry
+                Placeholder="Email"
+                Text="{Binding Email}"
+                Keyboard="Email"
+                ReturnType="Next">
+                <Entry.Behaviors>
+                    <toolkit:EmailValidationBehavior
+                        InvalidStyle="{StaticResource InvalidEntryStyle}"
+                        ValidStyle="{StaticResource ValidEntryStyle}"
+                        Flags="ValidateOnValueChanged"/>
+                </Entry.Behaviors>
+            </Entry>
+
+            <Entry
+                Placeholder="Password"
+                Text="{Binding Password}"
+                IsPassword="True"
+                Keyboard="Default"/>
+
+            <Button
+                Text="Log ind"
+                Command="{Binding LoginCommand}" />
+
+            <Label
+                Text="{Binding ErrorMessage}"
+                TextColor="Red" />
+
+        </VerticalStackLayout>
+
+        <ActivityIndicator
+            Grid.Row="0"
+            Grid.RowSpan="2"
+            Grid.Column="0"
+            HorizontalOptions="Center"
+            VerticalOptions="Center"
+            HeightRequest="{OnPlatform Android=200, iOS=25}"
+            WidthRequest="{OnPlatform Android=200, iOS=25}"
+            BackgroundColor="{OnPlatform iOS={AppThemeBinding Light={StaticResource Gray400}, Dark={StaticResource Gray600}}}"
+            IsRunning="{Binding IsBusy}"
+            IsVisible="{Binding IsBusy}"/>
+    </Grid>
+</ContentPage>

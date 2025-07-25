@@ -9,6 +9,7 @@ using MinaGroup.Backend.Infrastructure.Identity;
 using MinaGroup.Backend.Models;
 using MinaGroup.Backend.Options;
 using MinaGroup.Backend.Services;
+using MinaGroup.Backend.Services.Interfaces;
 using System.Text;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -54,6 +55,16 @@ builder.Services.Configure<IdentityOptions>(options =>
 var jwtKey = builder.Configuration["Jwt:Key"];
 var jwtIssuer = builder.Configuration["Jwt:Issuer"];
 
+if (string.IsNullOrEmpty(jwtKey))
+{
+    throw new Exception("JWT nøgle er ikke sat. Tjek miljøvariabler eller user secrets.");
+}
+
+if (string.IsNullOrEmpty(jwtIssuer))
+{
+    throw new Exception("JWT issuer er ikke sat. Tjek miljøvariabler eller user secrets.");
+}
+
 // Autentificering: b�de Cookie og JWT
 builder.Services.AddAuthentication(options =>
 {
@@ -79,12 +90,23 @@ builder.Services.AddAuthentication(options =>
     };
 });
 
+// Load Send Grid API Key.
+var sendGridKey = builder.Configuration["SendGrid:SendGridKey"];
+
+if (string.IsNullOrEmpty(sendGridKey))
+{
+    throw new Exception("Send Grid Key er ikke sat. Tjek miljøvariabler eller user secrets.");
+}
+
 // Add Email service.
 builder.Services.AddTransient<IEmailSender, EmailSender>();
 builder.Services.Configure<AuthMessageSenderOptions>(authMessageSenderOptions =>
 {
     authMessageSenderOptions.SendGridKey = builder.Configuration["SendGrid:SendGridKey"];
 });
+
+// Add Token Service.
+builder.Services.AddScoped<ITokenService, TokenService>();
 
 // MVC og Razor Pages
 builder.Services.AddControllers();

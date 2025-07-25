@@ -48,6 +48,8 @@ namespace MinaGroup.Backend.Services
             _logger.LogInformation(response.IsSuccessStatusCode
                                    ? $"Email to {toEmail} queued successfully!"
                                    : $"Failure Email to {toEmail}");
+
+            _logger.LogInformation(response.Body.ToString());
         }
     }
 }
