@@ -1,0 +1,127 @@
+﻿@page
+@model MinaGroup.Backend.Pages.Management.SelfEvaluations.DetailsModel
+
+@{
+    ViewData["Title"] = "Vis Evalueringsskema";
+}
+
+<h1 class="text-center display-4 fw-bold text-primary mb-4">@ViewData["Title"]</h1>
+
+<hr />
+
+<div class="row justify-content-center">
+    <div class="col-md-8">
+        <div class="p-4 border rounded shadow-sm bg-light">
+            <div class="mb-3">
+                <label class="form-label fw-bold">Borger</label>
+                <input value="@Model.SelfEvaluation.User.FullName" disabled class="form-control" />
+            </div>
+
+            <div class="mb-3">
+                <label class="form-label fw-bold">@Html.DisplayNameFor(m => m.SelfEvaluation.IsSick)</label>
+                <div class="form-check">
+                    <input class="form-check-input" type="checkbox" disabled
+                           @(Model.SelfEvaluation.IsSick ? "checked" : "") />
+                    <label class="form-check-label">Sygemeldt</label>
+                </div>
+            </div>
+
+            <div class="mb-3">
+                <label asp-for="SelfEvaluation.ArrivalTime" class="form-label fw-bold"></label>
+                <input value="@Model.SelfEvaluation.ArrivalTime?.ToString(@"hh\:mm")" disabled class="form-control" />
+            </div>
+
+            <div class="mb-3">
+                <label asp-for="SelfEvaluation.DepartureTime" class="form-label fw-bold"></label>
+                <input value="@Model.SelfEvaluation.DepartureTime?.ToString(@"hh\:mm")" disabled class="form-control" />
+            </div>
+
+            <div class="mb-3">
+                <label asp-for="SelfEvaluation.TotalHours" class="form-label fw-bold"></label>
+                <input value="@Model.SelfEvaluation.TotalHours?.ToString(@"hh\:mm")" disabled class="form-control" />
+            </div>
+
+            <div class="mb-3">
+                <label class="form-label fw-bold">@Html.DisplayNameFor(m => m.SelfEvaluation.HadBreak)</label>
+                <div class="form-check">
+                    <input class="form-check-input" type="checkbox" disabled
+                           @(Model.SelfEvaluation.HadBreak ? "checked" : "") />
+                    <label class="form-check-label">Pause</label>
+                </div>
+            </div>
+
+            <div class="mb-3">
+                <label asp-for="SelfEvaluation.BreakDuration" class="form-label fw-bold"></label>
+                <input value="@Model.SelfEvaluation.BreakDuration?.ToString(@"hh\:mm")" disabled class="form-control" />
+            </div>
+
+            <div class="mb-3">
+                <label asp-for="SelfEvaluation.ArrivalStatus" class="form-label fw-bold"></label>
+                <input value="@Model.SelfEvaluation.ArrivalStatus" disabled class="form-control" />
+            </div>
+
+            <div class="mb-3">
+                <label asp-for="SelfEvaluation.Collaboration" class="form-label fw-bold"></label>
+                <input value="@Model.SelfEvaluation.Collaboration" disabled class="form-control" />
+            </div>
+
+            <div class="mb-3">
+                <label asp-for="SelfEvaluation.Assistance" class="form-label fw-bold"></label>
+                <input value="@Model.SelfEvaluation.Assistance" disabled class="form-control" />
+            </div>
+
+            <div class="mb-3">
+                <label asp-for="SelfEvaluation.Aid" class="form-label fw-bold"></label>
+                <input value="@Model.SelfEvaluation.Aid" disabled class="form-control" />
+            </div>
+
+            <div class="mb-3">
+                <label asp-for="SelfEvaluation.AidDescription" class="form-label fw-bold"></label>
+                <input value="@Model.SelfEvaluation.AidDescription" disabled class="form-control" />
+            </div>
+
+            <div class="mb-3">
+                <label class="form-label fw-bold">@Html.DisplayNameFor(m => m.SelfEvaluation.HadDiscomfort)</label>
+                <div class="form-check">
+                    <input class="form-check-input" type="checkbox" disabled
+                           @(Model.SelfEvaluation.HadDiscomfort ? "checked" : "") />
+                    <label class="form-check-label">Ubehag oplevet</label>
+                </div>
+            </div>
+
+            <div class="mb-3">
+                <label asp-for="SelfEvaluation.DiscomfortDescription" class="form-label fw-bold"></label>
+                <input value="@Model.SelfEvaluation.DiscomfortDescription" disabled class="form-control" />
+            </div>
+
+            <div class="mb-3">
+                <label asp-for="SelfEvaluation.CommentFromUser" class="form-label fw-bold"></label>
+                <textarea disabled class="form-control">@Model.SelfEvaluation.CommentFromUser</textarea>
+            </div>
+
+            <div class="mb-3">
+                <label asp-for="SelfEvaluation.NextMeetingNotes" class="form-label fw-bold"></label>
+                <textarea disabled class="form-control">@Model.SelfEvaluation.NextMeetingNotes</textarea>
+            </div>
+
+            <div class="mb-3">
+                <label asp-for="SelfEvaluation.CommentFromLeader" class="form-label fw-bold"></label>
+                <textarea disabled class="form-control">@Model.SelfEvaluation.CommentFromLeader</textarea>
+            </div>
+
+            <div class="mb-3">
+                <label asp-for="SelfEvaluation.EvaluationDate" class="form-label fw-bold"></label>
+                <input value="@Model.SelfEvaluation.EvaluationDate.ToString("dd.MM.yyyy HH:mm")" disabled class="form-control" />
+            </div>
+
+            <div class="mb-3">
+                <label asp-for="SelfEvaluation.LastUpdated" class="form-label fw-bold"></label>
+                <input value="@Model.SelfEvaluation.LastUpdated.ToString("dd.MM.yyyy HH:mm")" disabled class="form-control" />
+            </div>
+
+            <div class="d-flex justify-content-between">
+                <a class="btn btn-outline-primary" asp-page="./Index">Tilbage</a>
+            </div>
+        </div>
+    </div>
+</div>

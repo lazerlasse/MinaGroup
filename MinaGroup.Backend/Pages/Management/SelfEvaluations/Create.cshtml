@@ -1,0 +1,153 @@
+﻿@page
+@model MinaGroup.Backend.Pages.Management.SelfEvaluations.CreateModel
+
+@{
+    ViewData["Title"] = "Opret Selvevalueringsskema";
+}
+
+<h1 class="text-center display-4 fw-bold text-primary mb-4">@ViewData["Title"]</h1>
+
+<hr />
+
+<div class="row justify-content-center">
+    <div class="col-md-8">
+        <form method="post" class="p-4 border rounded shadow-sm bg-light">
+            <div asp-validation-summary="ModelOnly" class="text-danger mb-3"></div>
+
+            <div class="mb-3">
+                <label asp-for="SelfEvaluation.UserId" class="form-label fw-bold">Borger</label>
+                <select asp-for="SelfEvaluation.UserId" class="form-select"
+                        asp-items="@(ViewData["UserId"] as SelectList)"></select>
+                <span asp-validation-for="SelfEvaluation.UserId" class="text-danger"></span>
+            </div>
+
+            <div class="mb-3">
+                <label class="form-label fw-bold">@Html.DisplayNameFor(m => m.SelfEvaluation.IsSick)</label>
+                <div>
+                    <input class="form-check-input me-2" asp-for="SelfEvaluation.IsSick" id="SelfEvaluation_IsSick" />
+                    <span asp-validation-for="SelfEvaluation.IsSick" class="text-danger"></span>
+                </div>
+            </div>
+
+            <!-- alt andet indhold pakkes i denne sektion og skjules når IsSick===true -->
+            <div id="notSickSection">
+                <div class="mb-3">
+                    <label asp-for="SelfEvaluation.ArrivalTime" class="form-label fw-bold"></label>
+                    <input asp-for="SelfEvaluation.ArrivalTime" type="time" step="60" class="form-control" id="SelfEvaluation_ArrivalTime" />
+                    <span asp-validation-for="SelfEvaluation.ArrivalTime" class="text-danger"></span>
+                </div>
+
+                <div class="mb-3">
+                    <label asp-for="SelfEvaluation.DepartureTime" class="form-label fw-bold"></label>
+                    <input asp-for="SelfEvaluation.DepartureTime" type="time" step="60" class="form-control" id="SelfEvaluation_DepartureTime" />
+                    <span asp-validation-for="SelfEvaluation.DepartureTime" class="text-danger"></span>
+                </div>
+
+                <div class="mb-3">
+                    <label asp-for="SelfEvaluation.TotalHours" class="form-label fw-bold"></label>
+                    <!-- Visning -->
+                    <input id="totalHoursDisplay" class="form-control disabled" type="text" readonly />
+                    <!-- Hidden, faktisk value der postes (format HH:mm:ss) -->
+                    <input type="hidden" asp-for="SelfEvaluation.TotalHours" id="SelfEvaluation_TotalHours" />
+                    <span asp-validation-for="SelfEvaluation.TotalHours" class="text-danger"></span>
+                </div>
+
+                <div class="mb-3">
+                    <label class="form-label fw-bold">@Html.DisplayNameFor(m => m.SelfEvaluation.HadBreak)</label>
+                    <div>
+                        <input class="form-check-input me-2" asp-for="SelfEvaluation.HadBreak" id="SelfEvaluation_HadBreak" />
+                        <span asp-validation-for="SelfEvaluation.HadBreak" class="text-danger"></span>
+                    </div>
+                </div>
+
+                <div class="mb-3" id="breakDurationSection">
+                    <label asp-for="SelfEvaluation.BreakDuration" class="form-label fw-bold"></label>
+                    <input asp-for="SelfEvaluation.BreakDuration" type="time" step="60" class="form-control" id="SelfEvaluation_BreakDuration" />
+                    <span asp-validation-for="SelfEvaluation.BreakDuration" class="text-danger"></span>
+                </div>
+
+                <div class="mb-3">
+                    <label asp-for="SelfEvaluation.ArrivalStatus" class="form-label fw-bold"></label>
+                    <select asp-for="SelfEvaluation.ArrivalStatus" class="form-select"
+                            asp-items="@(new SelectList(Model.ArrivalOptions))"></select>
+                </div>
+
+                <div class="mb-3">
+                    <label asp-for="SelfEvaluation.Collaboration" class="form-label fw-bold"></label>
+                    <select asp-for="SelfEvaluation.Collaboration" class="form-select"
+                            asp-items="@(new SelectList(Model.CollaborationOptions))"></select>
+                </div>
+
+                <div class="mb-3">
+                    <label asp-for="SelfEvaluation.Assistance" class="form-label fw-bold"></label>
+                    <select asp-for="SelfEvaluation.Assistance" class="form-select"
+                            asp-items="@(new SelectList(Model.AssistanceOptions))"></select>
+                </div>
+
+                <div class="mb-3">
+                    <label asp-for="SelfEvaluation.Aid" class="form-label fw-bold"></label>
+                    <select asp-for="SelfEvaluation.Aid" class="form-select"
+                            asp-items="@(new SelectList(Model.AidOptions))"></select>
+                </div>
+
+                <div class="mb-3">
+                    <label asp-for="SelfEvaluation.AidDescription" class="form-label fw-bold"></label>
+                    <input asp-for="SelfEvaluation.AidDescription" class="form-control" />
+                    <span asp-validation-for="SelfEvaluation.AidDescription" class="text-danger"></span>
+                </div>
+
+                <div class="mb-3">
+                    <label class="form-label fw-bold">@Html.DisplayNameFor(m => m.SelfEvaluation.HadDiscomfort)</label>
+                    <div>
+                        <input class="form-check-input me-2" asp-for="SelfEvaluation.HadDiscomfort" id="SelfEvaluation_HadDiscomfort" />
+                        <span asp-validation-for="SelfEvaluation.HadDiscomfort" class="text-danger"></span>
+                    </div>
+                </div>
+
+                <div class="mb-3" id="discomfortDescriptionSection">
+                    <label asp-for="SelfEvaluation.DiscomfortDescription" class="form-label fw-bold"></label>
+                    <input asp-for="SelfEvaluation.DiscomfortDescription" class="form-control" />
+                    <span asp-validation-for="SelfEvaluation.DiscomfortDescription" class="text-danger"></span>
+                </div>
+
+                <div class="mb-3">
+                    <label asp-for="SelfEvaluation.CommentFromUser" class="form-label fw-bold"></label>
+                    <textarea asp-for="SelfEvaluation.CommentFromUser" class="form-control"></textarea>
+                    <span asp-validation-for="SelfEvaluation.CommentFromUser" class="text-danger"></span>
+                </div>
+
+                <div class="mb-3">
+                    <label asp-for="SelfEvaluation.NextMeetingNotes" class="form-label fw-bold"></label>
+                    <input asp-for="SelfEvaluation.NextMeetingNotes" class="form-control" />
+                    <span asp-validation-for="SelfEvaluation.NextMeetingNotes" class="text-danger"></span>
+                </div>
+
+                <div class="mb-3">
+                    <label asp-for="SelfEvaluation.CommentFromLeader" class="form-label fw-bold"></label>
+                    <input asp-for="SelfEvaluation.CommentFromLeader" class="form-control" />
+                    <span asp-validation-for="SelfEvaluation.CommentFromLeader" class="text-danger"></span>
+                </div>
+            </div> <!-- /notSickSection -->
+
+            <div class="mb-3">
+                <label asp-for="SelfEvaluation.EvaluationDate" class="form-label fw-bold"></label>
+                <input asp-for="SelfEvaluation.EvaluationDate" class="form-control" type="date" />
+                <span asp-validation-for="SelfEvaluation.EvaluationDate" class="text-danger"></span>
+            </div>
+
+            <div class="d-flex justify-content-between">
+                <a class="btn btn-outline-secondary" asp-page="./Index">Fortryd</a>
+                <input type="submit" value="Opret" class="btn btn-primary" />
+            </div>
+        </form>
+    </div>
+</div>
+
+@section Scripts {
+    @{
+        await Html.RenderPartialAsync("_ValidationScriptsPartial");
+    }
+
+    <!-- Load the client-side logic (toggling + totalHours calc & timespan support) -->
+    <script src="~/js/selfevaluation-form.js"></script>
+}

@@ -1,4 +1,4 @@
-﻿using MinaGroupApp.Models.Auth;
+﻿using MinaGroupApp.DataTransferObjects.Auth;
 using MinaGroupApp.Services.Interfaces;
 using System.Net.Http.Headers;
 

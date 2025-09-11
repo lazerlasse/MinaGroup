@@ -1,0 +1,36 @@
+﻿@page
+@model MinaGroup.Backend.Pages.Management.TaskOptions.IndexModel
+
+@{
+    ViewData["Title"] = "Arbejdsopgaver og Værkstedsoversigt";
+}
+
+<h1 class="text-center display-4 fw-bold text-primary">@ViewData["Title"]</h1>
+
+<p>
+    <a class="btn btn-primary" asp-page="Create">Opret</a>
+</p>
+
+<table class="table">
+    <thead>
+        <tr>
+            <th>
+                @Html.DisplayNameFor(model => model.TaskOption[0].TaskName)
+            </th>
+            <th></th>
+        </tr>
+    </thead>
+    <tbody>
+@foreach (var item in Model.TaskOption) {
+        <tr>
+            <td>
+                @Html.DisplayFor(modelItem => item.TaskName)
+            </td>
+            <td>
+                <a asp-page="./Edit" asp-route-id="@item.TaskOptionId">Rediger</a> |
+                <a asp-page="./Delete" asp-route-id="@item.TaskOptionId">Slet</a>
+            </td>
+        </tr>
+}
+    </tbody>
+</table>

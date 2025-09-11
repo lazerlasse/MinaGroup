@@ -1,0 +1,102 @@
+﻿@page
+@model MinaGroup.Backend.Pages.Management.SelfEvaluations.IndexModel
+
+@{
+    ViewData["Title"] = "Selvevalueringer";
+}
+
+<h1 class="text-center display-4 mb-2 fw-bold text-primary">@ViewData["Title"]</h1>
+
+<p>
+    <a asp-page="Create" class="btn btn-outline-primary">Opret</a>
+</p>
+
+<table class="table">
+    <thead>
+        <tr>
+            <th>
+                Borger
+            </th>
+            <th>
+                @Html.DisplayNameFor(model => model.SelfEvaluation[0].IsSick)
+            </th>
+            <th>
+                @Html.DisplayNameFor(model => model.SelfEvaluation[0].ArrivalTime)
+            </th>
+            <th>
+                @Html.DisplayNameFor(model => model.SelfEvaluation[0].DepartureTime)
+            </th>
+            <th>
+                @Html.DisplayNameFor(model => model.SelfEvaluation[0].TotalHours)
+            </th>
+            <th>
+                @Html.DisplayNameFor(model => model.SelfEvaluation[0].HadBreak)
+            </th>
+            <th>
+                @Html.DisplayNameFor(model => model.SelfEvaluation[0].BreakDuration)
+            </th>
+            <th>
+                @Html.DisplayNameFor(model => model.SelfEvaluation[0].NextMeetingNotes)
+            </th>
+            <th>
+                @Html.DisplayNameFor(model => model.SelfEvaluation[0].CommentFromLeader)
+            </th>
+            <th>
+                @Html.DisplayNameFor(model => model.SelfEvaluation[0].EvaluationDate)
+            </th>
+            <th>
+                @Html.DisplayNameFor(model => model.SelfEvaluation[0].LastUpdated)
+            </th>
+            <th></th>
+        </tr>
+    </thead>
+    <tbody>
+        @foreach (var item in Model.SelfEvaluation)
+        {
+            <tr>
+                <td>
+                    @Html.DisplayFor(modelItem => item.User.FullName)
+                </td>
+                <td>
+                    @Html.DisplayFor(modelItem => item.IsSick)
+                </td>
+                <td>
+                    @Html.DisplayFor(modelItem => item.ArrivalTime)
+                </td>
+                <td>
+                    @Html.DisplayFor(modelItem => item.DepartureTime)
+                </td>
+                <td>
+                    @Html.DisplayFor(modelItem => item.TotalHours)
+                </td>
+                <td>
+                    @Html.DisplayFor(modelItem => item.HadBreak)
+                </td>
+                <td>
+                    @Html.DisplayFor(modelItem => item.BreakDuration)
+                </td>
+                <td>
+                    @Html.DisplayFor(modelItem => item.NextMeetingNotes)
+                </td>
+                <td>
+                    @Html.DisplayFor(modelItem => item.CommentFromLeader)
+                </td>
+                <td>
+                    @Html.DisplayFor(modelItem => item.EvaluationDate)
+                </td>
+                <td>
+                    @Html.DisplayFor(modelItem => item.LastUpdated)
+                </td>
+                <td>
+                    <a asp-page="./Edit" asp-route-id="@item.Id">Rediger</a> |
+                    <a asp-page="./Details" asp-route-id="@item.Id">Vis</a> |
+
+                    @if (User.Identity?.IsAuthenticated == true && (User.IsInRole("Admin") || User.IsInRole("SysAdmin")))
+                    {
+                        <a asp-page="./Delete" asp-route-id="@item.Id">Slet</a>
+                    }
+                </td>
+            </tr>
+        }
+    </tbody>
+</table>

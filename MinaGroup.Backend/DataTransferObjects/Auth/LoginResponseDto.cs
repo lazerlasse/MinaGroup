@@ -1,4 +1,4 @@
-﻿namespace MinaGroup.Backend.Models.Auth
+﻿namespace MinaGroup.Backend.DataTransferObjects.Auth
 {
     public class LoginResponseDto
     {

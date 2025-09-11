@@ -177,6 +177,12 @@ namespace MinaGroup.Backend.Migrations
                         .IsRequired()
                         .HasColumnType("longtext");
 
+                    b.Property<DateTime?>("JobEndDate")
+                        .HasColumnType("datetime(6)");
+
+                    b.Property<DateTime?>("JobStartDate")
+                        .HasColumnType("datetime(6)");
+
                     b.Property<string>("LastName")
                         .IsRequired()
                         .HasColumnType("longtext");
@@ -236,6 +242,111 @@ namespace MinaGroup.Backend.Migrations
                     b.ToTable("AspNetUsers", (string)null);
                 });
 
+            modelBuilder.Entity("MinaGroup.Backend.Models.SelfEvaluation", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("Aid")
+                        .HasColumnType("longtext");
+
+                    b.Property<string>("AidDescription")
+                        .HasColumnType("longtext");
+
+                    b.Property<string>("ArrivalStatus")
+                        .HasColumnType("longtext");
+
+                    b.Property<TimeSpan?>("ArrivalTime")
+                        .HasColumnType("time(6)");
+
+                    b.Property<string>("Assistance")
+                        .HasColumnType("longtext");
+
+                    b.Property<TimeSpan?>("BreakDuration")
+                        .HasColumnType("time(6)");
+
+                    b.Property<string>("Collaboration")
+                        .HasColumnType("longtext");
+
+                    b.Property<string>("CommentFromLeader")
+                        .HasColumnType("longtext");
+
+                    b.Property<string>("CommentFromUser")
+                        .HasColumnType("longtext");
+
+                    b.Property<TimeSpan?>("DepartureTime")
+                        .HasColumnType("time(6)");
+
+                    b.Property<string>("DiscomfortDescription")
+                        .HasColumnType("longtext");
+
+                    b.Property<DateTime>("EvaluationDate")
+                        .HasColumnType("datetime(6)");
+
+                    b.Property<bool>("HadBreak")
+                        .HasColumnType("tinyint(1)");
+
+                    b.Property<bool>("HadDiscomfort")
+                        .HasColumnType("tinyint(1)");
+
+                    b.Property<bool>("IsSick")
+                        .HasColumnType("tinyint(1)");
+
+                    b.Property<DateTime>("LastUpdated")
+                        .HasColumnType("datetime(6)");
+
+                    b.Property<string>("NextMeetingNotes")
+                        .HasColumnType("longtext");
+
+                    b.Property<TimeSpan?>("TotalHours")
+                        .HasColumnType("time(6)");
+
+                    b.Property<string>("UserId")
+                        .IsRequired()
+                        .HasColumnType("varchar(255)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("UserId");
+
+                    b.ToTable("SelfEvaluations");
+                });
+
+            modelBuilder.Entity("MinaGroup.Backend.Models.TaskOption", b =>
+                {
+                    b.Property<int>("TaskOptionId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("TaskOptionId"));
+
+                    b.Property<string>("TaskName")
+                        .IsRequired()
+                        .HasColumnType("longtext");
+
+                    b.HasKey("TaskOptionId");
+
+                    b.ToTable("TaskOptions");
+                });
+
+            modelBuilder.Entity("SelfEvaluationTaskOption", b =>
+                {
+                    b.Property<int>("SelectedTaskTaskOptionId")
+                        .HasColumnType("int");
+
+                    b.Property<int>("SelfEvaluationId")
+                        .HasColumnType("int");
+
+                    b.HasKey("SelectedTaskTaskOptionId", "SelfEvaluationId");
+
+                    b.HasIndex("SelfEvaluationId");
+
+                    b.ToTable("SelfEvaluationTasks", (string)null);
+                });
+
             modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityRoleClaim<string>", b =>
                 {
                     b.HasOne("Microsoft.AspNetCore.Identity.IdentityRole", null)
@@ -283,6 +394,32 @@ namespace MinaGroup.Backend.Migrations
                     b.HasOne("MinaGroup.Backend.Models.AppUser", null)
                         .WithMany()
                         .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("MinaGroup.Backend.Models.SelfEvaluation", b =>
+                {
+                    b.HasOne("MinaGroup.Backend.Models.AppUser", "User")
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("User");
+                });
+
+            modelBuilder.Entity("SelfEvaluationTaskOption", b =>
+                {
+                    b.HasOne("MinaGroup.Backend.Models.TaskOption", null)
+                        .WithMany()
+                        .HasForeignKey("SelectedTaskTaskOptionId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("MinaGroup.Backend.Models.SelfEvaluation", null)
+                        .WithMany()
+                        .HasForeignKey("SelfEvaluationId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
                 });

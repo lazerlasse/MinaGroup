@@ -1,8 +1,8 @@
 ﻿using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using MinaGroup.Backend.DataTransferObjects.Auth;
 using MinaGroup.Backend.Models;
-using MinaGroup.Backend.Models.Auth;
 using MinaGroup.Backend.Services.Interfaces;
 
 namespace MinaGroup.Backend.Controllers;

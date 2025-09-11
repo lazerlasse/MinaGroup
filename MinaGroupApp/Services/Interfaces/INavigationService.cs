@@ -9,5 +9,6 @@ namespace MinaGroupApp.Services.Interfaces
     public interface INavigationService
     {
         Task NavigateToAsync(string route, bool clearStack = false);
+        Task NavigateToLoginAsync();
     }
 }

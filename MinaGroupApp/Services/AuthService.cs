@@ -1,7 +1,5 @@
-﻿using MinaGroupApp.Models.Auth;
+﻿using MinaGroupApp.DataTransferObjects.Auth;
 using MinaGroupApp.Services.Interfaces;
-using System.Net.Http.Json;
-using System.Threading.Tasks;
 
 namespace MinaGroupApp.Services
 {

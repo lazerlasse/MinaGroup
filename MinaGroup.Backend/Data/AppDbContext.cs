@@ -8,6 +8,19 @@ namespace MinaGroup.Backend.Data
     {
         public AppDbContext(DbContextOptions<AppDbContext> options) : base(options) { }
 
-        //public DbSet<SelvEvaluering> SelvEvalueringer { get; set; }
+        public DbSet<SelfEvaluation> SelfEvaluations { get; set; }
+        public DbSet<TaskOption> TaskOptions { get; set; }
+
+        protected override void OnModelCreating(ModelBuilder modelBuilder)
+        {
+            base.OnModelCreating(modelBuilder);
+
+            // Mange-til-mange: SelfEvaluation <-> TaskOption
+            modelBuilder.Entity<SelfEvaluation>()
+                .HasMany(se => se.SelectedTask)
+                .WithMany() // Ingen navigation i TaskOption
+                .UsingEntity(j =>
+                    j.ToTable("SelfEvaluationTasks")); // Join-tabel
+        }
     }
 }

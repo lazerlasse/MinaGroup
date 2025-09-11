@@ -1,0 +1,26 @@
+﻿@page
+@model MinaGroup.Backend.Pages.Management.TaskOptions.DeleteModel
+
+@{
+    ViewData["Title"] = "Slet Arbejdsopgave/Værksted!";
+}
+
+<h1 class="text-center display-4 mb-2 fw-bold text-primary">@ViewData["Title"]</h1>
+
+<p class="text-center fs-5 mb-2 fw-bold text-danger">Er du sikker på du ønsker at slette? Handlingen kan ikke fortrydes!</p>
+
+<hr />
+
+<div>
+    <h4>@Html.DisplayNameFor(model => model.TaskOption.TaskName)</h4>
+    <p class="fw-bold text-black mb-2 fs-6">@Html.DisplayFor(model => model.TaskOption.TaskName)</p>
+    
+    <hr />
+    
+    
+    <form method="post">
+        <input type="hidden" asp-for="TaskOption.TaskOptionId" />
+        <a class="btn btn-secondary" asp-page="./Index">Fortryd</a>
+        <input type="submit" value="Slet" class="btn btn-danger" />
+    </form>
+</div>

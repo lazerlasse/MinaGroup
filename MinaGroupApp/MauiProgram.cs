@@ -27,10 +27,14 @@ namespace MinaGroupApp
             // Add Pages.
             builder.Services.AddTransient<LoginPage>();
             builder.Services.AddSingleton<FrontPage>();
+            builder.Services.AddTransient<PostSelfEvaluationPage>();
+            builder.Services.AddSingleton<SelfEvaluationMainPage>();
 
             // Add Viewmodels.
             builder.Services.AddTransient<LoginViewModel>();
             builder.Services.AddSingleton<FrontPageViewModel>();
+            builder.Services.AddTransient<PostSelfEvaluationViewModel>();
+            builder.Services.AddSingleton<SelfEvaluationMainPageViewModel>();
 
             // Add Services
             builder.Services.AddSingleton<IAuthService, AuthService>();
@@ -71,6 +75,15 @@ namespace MinaGroupApp
                 })
                 .AddHttpMessageHandler<AuthHttpMessageHandler>();
 
+            // Add Self Evaluation Api for self evaluation related api calls.
+            builder.Services.AddRefitClient<ISelfEvaluationApi>()
+                .ConfigureHttpClient(c =>
+                {
+                    c.BaseAddress = DeviceInfo.Platform == DevicePlatform.Android
+                        ? new Uri("http://10.0.2.2:5000")
+                        : new Uri("http://localhost:5000");
+                })
+                .AddHttpMessageHandler<AuthHttpMessageHandler>();
 
 #if DEBUG
             builder.Logging.AddDebug();

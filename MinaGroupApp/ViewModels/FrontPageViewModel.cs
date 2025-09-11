@@ -1,5 +1,6 @@
 ﻿using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
+using MinaGroupApp.Pages;
 using MinaGroupApp.Services.Interfaces;
 using System;
 using System.Collections.Generic;
@@ -43,10 +44,16 @@ namespace MinaGroupApp.ViewModels
         }
 
         [RelayCommand]
+        private async Task OpenSelfEvaluationAsync()
+        {
+            await _navigation.NavigateToAsync(nameof(PostSelfEvaluationPage));
+        }
+
+        [RelayCommand]
         private async Task Logout()
         {
             await _secureStorage.ClearAllAsync();
-            await _navigation.NavigateToAsync("//LoginPage", clearStack: true);
+            await _navigation.NavigateToLoginAsync();
         }
     }
 }

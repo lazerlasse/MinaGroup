@@ -1,4 +1,4 @@
-﻿using MinaGroupApp.Models;
+﻿using MinaGroupApp.DataTransferObjects;
 using Refit;
 using System;
 using System.Collections.Generic;
@@ -10,6 +10,7 @@ namespace MinaGroupApp.Services.Interfaces
 {
     public interface IUserApi
     {
+        [Headers("Authorization: Bearer")]
         [Get("/api/User/profile")]
         Task<UserProfileResponseDto> GetProfileAsync();
     }

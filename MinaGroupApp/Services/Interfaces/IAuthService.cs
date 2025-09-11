@@ -1,6 +1,4 @@
-﻿using MinaGroupApp.Models.Auth;
-
-namespace MinaGroupApp.Services.Interfaces;
+﻿namespace MinaGroupApp.Services.Interfaces;
 
 public interface IAuthService
 {

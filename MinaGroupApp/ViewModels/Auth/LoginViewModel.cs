@@ -40,7 +40,7 @@ namespace MinaGroupApp.ViewModels.Auth
             }
             else
             {
-                ErrorMessage = "Email eller adgangskode forkert, prøv venligst igen!";
+                ErrorMessage = "Der opstod en uventet fejl, prøv venligst igen!";
             }
 
             IsBusy = false;

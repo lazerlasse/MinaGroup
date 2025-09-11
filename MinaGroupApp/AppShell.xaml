@@ -8,6 +8,20 @@
     Shell.FlyoutBehavior="Disabled"
     Title="Mina Group">
 
-    <ShellContent Title="Forside" Route="FrontPage" ContentTemplate="{DataTemplate pages:FrontPage}" />
-
+    <TabBar>
+        <Tab
+            Title="Forside"
+            Icon="frontpage_house_icon.png">
+            <ShellContent
+                Route="FrontPage"
+                ContentTemplate="{DataTemplate pages:FrontPage}" />
+        </Tab>
+        <Tab
+            Title="Evalueringer"
+            Icon="evaluationpage_journal_icon.png">
+            <ShellContent
+                Route="SelfEvaluationMainPage"
+                ContentTemplate="{DataTemplate pages:SelfEvaluationMainPage}"/>
+        </Tab>
+    </TabBar>
 </Shell>

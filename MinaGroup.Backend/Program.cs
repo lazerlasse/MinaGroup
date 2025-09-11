@@ -16,131 +16,132 @@ var builder = WebApplication.CreateBuilder(args);
 
 // Connection string
 var connStr = builder.Configuration.GetConnectionString("DefaultConnection");
-
-// DbContext med retry-policies
 builder.Services.AddDbContext<AppDbContext>(options =>
     options.UseMySql(connStr, ServerVersion.AutoDetect(connStr), mysqlOptions =>
     {
         mysqlOptions.EnableRetryOnFailure(5, TimeSpan.FromSeconds(30), null);
     }));
 
-
-// Identity
-builder.Services.AddIdentity<AppUser, IdentityRole>()
-    .AddEntityFrameworkStores<AppDbContext>()
-    .AddDefaultTokenProviders();
-
-// Identity options
-builder.Services.Configure<IdentityOptions>(options =>
+// Identity + cookies
+builder.Services.AddIdentity<AppUser, IdentityRole>(options =>
 {
-    // Password
     options.Password.RequireDigit = true;
     options.Password.RequireLowercase = true;
     options.Password.RequireUppercase = true;
     options.Password.RequireNonAlphanumeric = false;
     options.Password.RequiredLength = 6;
     options.Password.RequiredUniqueChars = 1;
-
-    // Lockout
-    options.Lockout.DefaultLockoutTimeSpan = TimeSpan.FromMinutes(5);
-    options.Lockout.MaxFailedAccessAttempts = 5;
-    options.Lockout.AllowedForNewUsers = true;
-
-    // User
-    options.User.AllowedUserNameCharacters = "abcdefghijklmnopqrstuvwxyz���ABCDEFGHIJKLMNOPQRSTUVWXYZ���0123456789-._@+ ";
     options.User.RequireUniqueEmail = true;
-});
+})
+.AddEntityFrameworkStores<AppDbContext>()
+.AddDefaultTokenProviders();
 
-// JWT-konfiguration
+// Email og token services
+builder.Services.Configure<AuthMessageSenderOptions>(options =>
+{
+    options.SendGridKey = builder.Configuration["SendGrid:SendGridKey"];
+});
+builder.Services.AddTransient<IEmailSender, EmailSender>();
+builder.Services.AddScoped<ITokenService, TokenService>();
+
+// JWT setup til mobilapp
 var jwtKey = builder.Configuration["Jwt:Key"];
 var jwtIssuer = builder.Configuration["Jwt:Issuer"];
+var jwtAudience = builder.Configuration["Jwt:Audience"];
+var jwtKeyBytes = Encoding.UTF8.GetBytes(jwtKey);
 
-if (string.IsNullOrEmpty(jwtKey))
-{
-    throw new Exception("JWT nøgle er ikke sat. Tjek miljøvariabler eller user secrets.");
-}
-
-if (string.IsNullOrEmpty(jwtIssuer))
-{
-    throw new Exception("JWT issuer er ikke sat. Tjek miljøvariabler eller user secrets.");
-}
-
-// Autentificering: b�de Cookie og JWT
+// Authentication: cookies til web, JWT til API
 builder.Services.AddAuthentication(options =>
 {
-    options.DefaultScheme = CookieAuthenticationDefaults.AuthenticationScheme;
-    options.DefaultChallengeScheme = JwtBearerDefaults.AuthenticationScheme;
+    options.DefaultScheme = CookieAuthenticationDefaults.AuthenticationScheme; // default for web
+    options.DefaultChallengeScheme = CookieAuthenticationDefaults.AuthenticationScheme;
 })
-.AddCookie(options =>
+.AddCookie(CookieAuthenticationDefaults.AuthenticationScheme, options =>
 {
-    options.LoginPath = "/Account/Login";
-    options.LogoutPath = "/Account/Logout";
-    options.ExpireTimeSpan = TimeSpan.FromDays(14);
+    options.LoginPath = "/Identity/Account/Login";
+    options.AccessDeniedPath = "/Identity/Account/AccessDenied";
+    options.Cookie.HttpOnly = true;
+    options.Cookie.SecurePolicy = CookieSecurePolicy.SameAsRequest; // brug HTTPS i prod
 })
-.AddJwtBearer(options =>
+.AddJwtBearer(JwtBearerDefaults.AuthenticationScheme, options =>
 {
     options.TokenValidationParameters = new TokenValidationParameters
     {
         ValidateIssuer = true,
-        ValidateAudience = false,
+        ValidateAudience = true,
+        ValidIssuer = jwtIssuer,
+        ValidAudience = jwtAudience,
         ValidateLifetime = true,
         ValidateIssuerSigningKey = true,
-        ValidIssuer = jwtIssuer,
-        IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtKey))
+        IssuerSigningKey = new SymmetricSecurityKey(jwtKeyBytes),
+        ClockSkew = TimeSpan.Zero
+    };
+    options.Events = new JwtBearerEvents
+    {
+        OnAuthenticationFailed = context =>
+        {
+            context.Response.StatusCode = 401;
+            return Task.CompletedTask;
+        },
+        OnChallenge = context =>
+        {
+            context.HandleResponse();
+            context.Response.StatusCode = 401;
+            return context.Response.WriteAsync("Unauthorized.");
+        }
     };
 });
 
-// Load Send Grid API Key.
-var sendGridKey = builder.Configuration["SendGrid:SendGridKey"];
-
-if (string.IsNullOrEmpty(sendGridKey))
-{
-    throw new Exception("Send Grid Key er ikke sat. Tjek miljøvariabler eller user secrets.");
-}
-
-// Add Email service.
-builder.Services.AddTransient<IEmailSender, EmailSender>();
-builder.Services.Configure<AuthMessageSenderOptions>(authMessageSenderOptions =>
-{
-    authMessageSenderOptions.SendGridKey = builder.Configuration["SendGrid:SendGridKey"];
-});
-
-// Add Token Service.
-builder.Services.AddScoped<ITokenService, TokenService>();
-
-// MVC og Razor Pages
-builder.Services.AddControllers();
+// Razor Pages + MVC Controllers
 builder.Services.AddRazorPages();
+builder.Services.AddControllers();
+
+// CORS til mobilapp
+builder.Services.AddCors(options =>
+{
+    options.AddPolicy("AllowAll", policy =>
+    {
+        policy.AllowAnyOrigin().AllowAnyHeader().AllowAnyMethod();
+    });
+});
 
 var app = builder.Build();
 
-// Migration og seeding
+// Migration + seeding
 using (var scope = app.Services.CreateScope())
 {
     var services = scope.ServiceProvider;
     var logger = services.GetRequiredService<ILogger<Program>>();
-
     try
     {
         var context = services.GetRequiredService<AppDbContext>();
         context.Database.Migrate();
-
-        await DataSeeder.SeedAdminUserAsync(services);
+        await DataSeeder.SeedAsync(services);
     }
     catch (Exception ex)
     {
-        logger.LogError(ex, "An error occurred during migration or seeding.");
+        logger.LogError(ex, "Fejl under migration eller seeding.");
     }
+}
+
+// Middleware pipeline
+if (!app.Environment.IsDevelopment())
+{
+    app.UseExceptionHandler("/Error");
+    app.UseHsts();
 }
 
 app.UseHttpsRedirection();
 app.UseStaticFiles();
+
 app.UseRouting();
 
-app.UseAuthentication();
+app.UseCors("AllowAll");
+
+app.UseAuthentication(); // vigtigt: f�r Authorization
 app.UseAuthorization();
 
-app.MapControllers();
-app.MapRazorPages();
+app.MapRazorPages();     // Browser UI
+app.MapControllers();    // API routes
 
 app.Run();

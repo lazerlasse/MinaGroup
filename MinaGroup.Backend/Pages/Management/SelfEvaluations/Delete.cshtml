@@ -1,0 +1,46 @@
+﻿@page
+@model MinaGroup.Backend.Pages.Management.SelfEvaluations.DeleteModel
+@{
+    ViewData["Title"] = "Slet selvevaluering";
+}
+
+<h2 class="text-danger fw-bold mb-4">⚠️ Slet selvevaluering</h2>
+
+<div class="alert alert-danger rounded-3 shadow-sm">
+    <strong>Advarsel!</strong> Denne handling vil <u>permanent slette</u> selvevalueringen og kan ikke fortrydes.
+</div>
+
+<div class="card shadow-sm rounded-3 mb-4">
+    <div class="card-body">
+        <div class="mb-3">
+            <label asp-for="SelfEvaluation.UserId" class="form-label fw-bold">Borger</label>
+            <input asp-for="SelfEvaluation.User.FullName" class="form-control" readonly />
+        </div>
+
+        <div class="mb-3">
+            <label asp-for="SelfEvaluation.CommentFromLeader" class="form-label fw-bold">Noter</label>
+            <input asp-for="SelfEvaluation.CommentFromLeader" class="form-control" readonly />
+        </div>
+
+        <div class="mb-3">
+            <label asp-for="SelfEvaluation.LastUpdated" class="form-label fw-bold">Senest Opdateret</label>
+            <input asp-for="SelfEvaluation.LastUpdated" class="form-control" readonly />
+        </div>
+
+        <div class="mb-3">
+            <label asp-for="SelfEvaluation.EvaluationDate" class="form-label fw-bold">Evalueringsdato</label>
+            <textarea asp-for="SelfEvaluation.EvaluationDate" class="form-control" readonly></textarea>
+        </div>
+    </div>
+</div>
+
+<form method="post">
+    <input type="hidden" asp-for="SelfEvaluation.Id" />
+
+    <button type="submit" class="btn btn-danger fw-bold me-2">
+        <i class="bi bi-trash-fill"></i> Slet
+    </button>
+    <a asp-page="./Index" class="btn btn-secondary">
+        <i class="bi bi-x-circle"></i> Annuller
+    </a>
+</form>

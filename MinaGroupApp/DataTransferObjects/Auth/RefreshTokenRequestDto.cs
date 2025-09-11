@@ -4,12 +4,10 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace MinaGroupApp.Models.Auth
+namespace MinaGroupApp.DataTransferObjects.Auth
 {
-    public class RefreshTokenResponseDto
+    public class RefreshTokenRequestDto
     {
-        public string AccessToken { get; set; } = string.Empty;
         public string RefreshToken { get; set; } = string.Empty;
-        public DateTime RefreshTokenExpires { get; set; }
     }
 }

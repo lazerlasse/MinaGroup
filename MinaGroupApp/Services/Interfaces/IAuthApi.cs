@@ -1,4 +1,4 @@
-﻿using MinaGroupApp.Models.Auth;
+﻿using MinaGroupApp.DataTransferObjects.Auth;
 using Refit;
 
 namespace MinaGroupApp.Services.Interfaces;

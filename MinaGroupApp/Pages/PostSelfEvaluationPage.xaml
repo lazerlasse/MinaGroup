@@ -1,0 +1,189 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage
+    xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+    xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+    xmlns:toolkit="http://schemas.microsoft.com/dotnet/2022/maui/toolkit"
+    xmlns:viewmodels="clr-namespace:MinaGroupApp.ViewModels"
+    xmlns:models="clr-namespace:MinaGroupApp.Models"
+    x:Class="MinaGroupApp.Pages.PostSelfEvaluationPage"
+    x:DataType="viewmodels:PostSelfEvaluationViewModel"
+    Title="{Binding Title}">
+
+    <Grid
+        RowDefinitions="*"
+        ColumnDefinitions="*">
+
+        <ScrollView
+            Grid.Row="0"
+            Grid.Column="0">
+            
+            <VerticalStackLayout
+                Padding="20"
+                Spacing="10">
+
+                <!-- SYGEMELDT -->
+                <Label
+                    Text="1. Er du sygemeldt i dag?"
+                    FontAttributes="Bold" />
+                
+                <Picker 
+                    ItemsSource="{Binding Form.YesNoOptions}" 
+                    SelectedItem="{Binding Form.IsSickAnswer}" />
+
+                <!-- Resten vises kun hvis ikke syg -->
+                <StackLayout
+                    IsVisible="{Binding Form.ShowMainForm}"
+                    Spacing="10">
+
+                    <!-- Mødetid -->
+                    <Label
+                        Text="2. Hvornår mødte du?"
+                        FontAttributes="Bold" />
+
+                    <TimePicker
+                        Time="{Binding Form.ArrivalTime}" />
+
+                    <!-- Gået hjem -->
+                    <Label
+                        Text="3. Hvornår gik du hjem?"
+                        FontAttributes="Bold" />
+
+                    <TimePicker
+                        Time="{Binding Form.DepartureTime}" />
+
+                    <!-- Afholdt Pause -->
+                    <Label
+                        Text="4. Har du holdt pause?"
+                        FontAttributes="Bold" />
+
+                    <Picker
+                        ItemsSource="{Binding Form.YesNoOptions}"
+                        SelectedItem="{Binding Form.HadBreakAnswer}"/>
+
+                    <!-- Layout for pause besvarelse -->
+                    <StackLayout
+                        IsVisible="{Binding Form.ShowBreakDuration}">
+
+                        <Label
+                            Text="Hvor lang tid?"
+                            FontAttributes="Bold"/>
+
+                        <TimePicker
+                            Time="{Binding Form.BreakDuration}" />
+
+                    </StackLayout>
+
+                    <!-- Automatisk beregning af samlet arbejdstid -->
+                    <Label
+                        Text="5. Samlet arbejdstid:"
+                        FontAttributes="Bold"/>
+
+                    <Entry
+                        Text="{Binding Form.TotalHoursDisplay}"
+                        IsReadOnly="True" />
+
+
+                    <!-- Kom du til tiden -->
+                    <Label
+                        Text="6. Kom du til tiden?"
+                        FontAttributes="Bold" />
+
+                    <Picker
+                        ItemsSource="{Binding Form.ArrivalOptions}"
+                        SelectedItem="{Binding Form.ArrivalStatus}" />
+
+                    <!-- Hvilke opgaver har du løst i dag -->
+                    <Label
+                        Text="7. Hvad lavede du i dag?"
+                        FontAttributes="Bold" />
+
+                    <CollectionView
+                        ItemsSource="{Binding Form.AvailableTasks}">
+                        <CollectionView.ItemTemplate>
+                            <DataTemplate x:DataType="models:TaskOption">
+                                <HorizontalStackLayout Spacing="5">
+                                    <CheckBox
+                                        IsChecked="{Binding IsSelected}" />
+                                    <Label
+                                        Text="{Binding TaskName}"
+                                        VerticalOptions="Center" />
+                                </HorizontalStackLayout>
+                            </DataTemplate>
+                        </CollectionView.ItemTemplate>
+                    </CollectionView>
+
+                    <!-- Samarbejde og hjælp -->
+                    <Label
+                        Text="8. Hvordan gik samarbejdet?"
+                        FontAttributes="Bold" />
+
+                    <Picker
+                        ItemsSource="{Binding Form.CollaborationOptions}"
+                        SelectedItem="{Binding Form.Collaboration}" />
+
+                    <!-- Klarede du arbejdet selv -->
+                    <Label
+                        Text="9. Klarer du dig selv?"
+                        FontAttributes="Bold" />
+
+                    <Picker
+                        ItemsSource="{Binding Form.AssistanceOptions}"
+                        SelectedItem="{Binding Form.Assistance}" />
+
+                    <!-- Hjælpemidler -->
+                    <Label
+                        Text="10. Brugte du hjælpemidler?"
+                        FontAttributes="Bold" />
+
+                    <Picker
+                        ItemsSource="{Binding Form.AidOptions}"
+                        SelectedItem="{Binding Form.Aid}" />
+
+                    <Entry
+                        Placeholder="Hvilke hjælpemidler har du brugt?"
+                        IsVisible="{Binding Form.ShowAidField}"
+                        Text="{Binding Form.AidDescription}" />
+
+                    <!-- Hvordan har du haft det i dag? -->
+                    <Label
+                        Text="11. Var du træt, ked af det eller havde ondt?"
+                        FontAttributes="Bold" />
+
+                    <Picker
+                        ItemsSource="{Binding Form.YesNoOptions}"
+                        SelectedItem="{Binding Form.HadDiscomfortAnswer}"/>
+
+                    <Entry
+                        Placeholder="Hvad?"
+                        IsVisible="{Binding Form.ShowDiscomfortField}"
+                        Text="{Binding Form.DiscomfortDescription}" />
+
+                    <Label
+                        Text="12. Andet?"
+                        FontAttributes="Bold" />
+
+                    <Editor
+                        Placeholder="Har du andre kommentarer eller lignende, så skriv det her."
+                        Text="{Binding Form.CommentFromUser}"
+                        AutoSize="TextChanges" />
+                </StackLayout>
+
+                <Button
+                    Text="Send"
+                    Command="{Binding SubmitCommand}"
+                    IsEnabled="{Binding IsNotBusy}" />
+            </VerticalStackLayout>
+        </ScrollView>
+
+        <ActivityIndicator
+            Grid.Row="0"
+            Grid.Column="0"
+            HorizontalOptions="Center"
+            VerticalOptions="Center"
+            HeightRequest="{OnPlatform Android=200, iOS=25}"
+            WidthRequest="{OnPlatform Android=200, iOS=25}"
+            BackgroundColor="{OnPlatform iOS={AppThemeBinding Light={StaticResource Gray400}, Dark={StaticResource Gray600}}}"
+            IsRunning="{Binding IsBusy}"
+            IsVisible="{Binding IsBusy}"/>
+    </Grid>
+</ContentPage>

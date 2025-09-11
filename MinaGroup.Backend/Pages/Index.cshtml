@@ -1,10 +1,13 @@
 ﻿@page
 @model IndexModel
 @{
-    ViewData["Title"] = "Home page";
+    ViewData["Title"] = "Mina Group Management";
 }
 
 <div class="text-center">
-    <h1 class="display-4">Welcome</h1>
-    <p>Learn about <a href="https://learn.microsoft.com/aspnet/core">building Web apps with ASP.NET Core</a>.</p>
+    <h1 class="text-center display-4 fw-bold text-primary">@ViewData["Title"]</h1>
+    <p class="text-center fs-5 text-muted mb-2">Denne side er kun for administrativt personale.</p>
+    <p class="text-center fs-5 text-muted mb-2">For information om Mina Group henviser vi i stedet til vores hjemmeside <a href="https://minagroup.dk">Minagroup.dk</a></p>
+    <hr/>
+    <img src="~/images/minagroup-logo.jpg" alt="Mina Group Logo" class="img-fluid align-content-center" style="max-width: 300px;" />
 </div>
