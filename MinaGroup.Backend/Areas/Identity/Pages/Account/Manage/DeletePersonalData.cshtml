@@ -1,31 +1,35 @@
 ﻿@page
 @model DeletePersonalDataModel
 @{
-    ViewData["Title"] = "Delete Personal Data";
+    ViewData["Title"] = "Slet personlige oplysninger";
     ViewData["ActivePage"] = ManageNavPages.PersonalData;
 }
 
-<h3>@ViewData["Title"]</h3>
+<h3 class="text-center display-5 fw-bold text-danger mb-4">@ViewData["Title"]</h3>
 
 <div class="alert alert-warning" role="alert">
     <p>
-        <strong>Deleting this data will permanently remove your account, and this cannot be recovered.</strong>
+        <strong>Advarsel:</strong> Sletning af dine oplysninger vil permanent fjerne din konto, inklusiv alle tilknyttede data som dine selvevalueringsskemaer. Dette kan <u>ikke</u> fortrydes.
     </p>
 </div>
 
-<div>
-    <form id="delete-user" method="post">
-        <div asp-validation-summary="ModelOnly" class="text-danger" role="alert"></div>
-        @if (Model.RequirePassword)
-        {
-            <div class="form-floating mb-3">
-                <input asp-for="Input.Password" class="form-control" autocomplete="current-password" aria-required="true" placeholder="Please enter your password." />
-                <label asp-for="Input.Password" class="form-label"></label>
-                <span asp-validation-for="Input.Password" class="text-danger"></span>
-            </div>
-        }
-        <button class="w-100 btn btn-lg btn-danger" type="submit">Delete data and close my account</button>
-    </form>
+<div class="row justify-content-center">
+    <div class="col-md-6">
+        <form id="delete-user" method="post">
+            <div asp-validation-summary="ModelOnly" class="text-danger mb-3" role="alert"></div>
+            @if (Model.RequirePassword)
+            {
+                <div class="form-floating mb-3">
+                    <input asp-for="Input.Password" class="form-control" autocomplete="current-password" aria-required="true" placeholder="Indtast din adgangskode" />
+                    <label asp-for="Input.Password" class="form-label">Adgangskode</label>
+                    <span asp-validation-for="Input.Password" class="text-danger"></span>
+                </div>
+            }
+            <button class="w-100 btn btn-lg btn-danger" type="submit">
+                Slet alle data og luk min konto
+            </button>
+        </form>
+    </div>
 </div>
 
 @section Scripts {

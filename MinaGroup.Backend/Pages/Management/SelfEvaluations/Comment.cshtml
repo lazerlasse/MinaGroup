@@ -1,0 +1,173 @@
+﻿@page "{id:int}"
+@model MinaGroup.Backend.Pages.Management.SelfEvaluations.CommentModel
+
+@{
+    ViewData["Title"] = "Kommentér og godkend selvevaluering";
+}
+
+<h1 class="text-center display-4 fw-bold text-primary mb-4">@ViewData["Title"]</h1>
+<hr />
+
+<div class="row justify-content-center">
+    <div class="col-md-8">
+        <form method="post">
+            <div class="p-4 border rounded shadow-sm bg-light">
+                <!-- Borger -->
+                <div class="mb-3">
+                    <label class="form-label fw-bold">Borger</label>
+                    <input value="@Model.SelfEvaluation.User.FullName" disabled class="form-control" />
+                </div>
+
+                <!-- Sygemeldt -->
+                <div class="mb-3">
+                    <label class="form-label fw-bold">Sygemeldt</label>
+                    <div class="form-check">
+                        <input class="form-check-input" type="checkbox" disabled
+                               id="SelfEvaluation_IsSick"
+                               @(Model.SelfEvaluation.IsSick ? "checked" : "") />
+                        <label class="form-check-label">Sygemeldt</label>
+                    </div>
+                </div>
+
+                <div class="mb-3" id="sickReasonSection">
+                    <label asp-for="SelfEvaluation.SickReason" class="form-label fw-bold"></label>
+                    <textarea asp-for="SelfEvaluation.SickReason" class="form-control" rows="3" id="SelfEvaluation_SickReason"></textarea>
+                    <span asp-validation-for="SelfEvaluation.SickReason" class="text-danger"></span>
+                </div>
+
+                <!-- Udeblevet -->
+                <div class="mb-3">
+                    <label class="form-label fw-bold">Udeblevet</label>
+                    <div class="form-check">
+                        <input class="form-check-input" type="checkbox" disabled
+                               id="SelfEvaluation_IsNoShow"
+                               @(Model.SelfEvaluation.IsNoShow ? "checked" : "") />
+                        <label class="form-check-label">Udeblevet</label>
+                    </div>
+                </div>
+
+                <div class="mb-3" id="noShowReasonSection">
+                    <label asp-for="SelfEvaluation.NoShowReason" class="form-label fw-bold"></label>
+                    <textarea asp-for="SelfEvaluation.NoShowReason" class="form-control" rows="3" id="SelfEvaluation_NoShowReason"></textarea>
+                    <span asp-validation-for="SelfEvaluation.NoShowReason" class="text-danger"></span>
+                </div>
+
+                <!-- Tidspunkter -->
+                <div class="mb-3">
+                    <label class="form-label fw-bold">Ankomsttid</label>
+                    <input value="@Model.SelfEvaluation.ArrivalTime?.ToString(@"hh\:mm")" disabled class="form-control" />
+                </div>
+                <div class="mb-3">
+                    <label class="form-label fw-bold">Afgangstid</label>
+                    <input value="@Model.SelfEvaluation.DepartureTime?.ToString(@"hh\:mm")" disabled class="form-control" />
+                </div>
+                <div class="mb-3">
+                    <label class="form-label fw-bold">Total timer</label>
+                    <input value="@Model.SelfEvaluation.TotalHours?.ToString(@"hh\:mm")" disabled class="form-control" />
+                </div>
+
+                <!-- Pause -->
+                <div class="mb-3">
+                    <label class="form-label fw-bold">Pause</label>
+                    <div class="form-check">
+                        <input class="form-check-input" type="checkbox" disabled
+                               @(Model.SelfEvaluation.HadBreak ? "checked" : "") />
+                        <label class="form-check-label">Pause</label>
+                    </div>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label fw-bold">Pause varighed</label>
+                    <input value="@Model.SelfEvaluation.BreakDuration?.ToString(@"hh\:mm")" disabled class="form-control" />
+                </div>
+
+                <!-- Andre felter -->
+                <div class="mb-3">
+                    <label class="form-label fw-bold">Ankomststatus</label>
+                    <input value="@Model.SelfEvaluation.ArrivalStatus" disabled class="form-control" />
+                </div>
+                <div class="mb-3">
+                    <label class="form-label fw-bold">Samarbejde</label>
+                    <input value="@Model.SelfEvaluation.Collaboration" disabled class="form-control" />
+                </div>
+                <div class="mb-3">
+                    <label class="form-label fw-bold">Assistance</label>
+                    <input value="@Model.SelfEvaluation.Assistance" disabled class="form-control" />
+                </div>
+                <div class="mb-3">
+                    <label class="form-label fw-bold">Hjælp</label>
+                    <input value="@Model.SelfEvaluation.Aid" disabled class="form-control" />
+                </div>
+                <div class="mb-3">
+                    <label class="form-label fw-bold">Hjælp beskrivelse</label>
+                    <input value="@Model.SelfEvaluation.AidDescription" disabled class="form-control" />
+                </div>
+
+                <div class="mb-3">
+                    <label class="form-label fw-bold">Ubehag oplevet</label>
+                    <div class="form-check">
+                        <input class="form-check-input" type="checkbox" disabled
+                               @(Model.SelfEvaluation.HadDiscomfort ? "checked" : "") />
+                        <label class="form-check-label">Ubehag oplevet</label>
+                    </div>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label fw-bold">Ubehag beskrivelse</label>
+                    <input value="@Model.SelfEvaluation.DiscomfortDescription" disabled class="form-control" />
+                </div>
+
+                <!-- Kommentar fra medarbejder -->
+                <div class="mb-3">
+                    <label class="form-label fw-bold">Kommentar fra medarbejder</label>
+                    <textarea class="form-control" rows="3" disabled>@Model.SelfEvaluation.CommentFromUser</textarea>
+                </div>
+
+                <!-- Kommentar fra leder -->
+                <div class="mb-3" id="commentFromLeaderSection">
+                    <label asp-for="SelfEvaluation.CommentFromLeader" class="form-label fw-bold"></label>
+                    <textarea asp-for="SelfEvaluation.CommentFromLeader" class="form-control" rows="3" id="SelfEvaluation_CommentFromLeader"></textarea>
+                    <span asp-validation-for="SelfEvaluation.CommentFromLeader" class="text-danger"></span>
+                </div>
+
+                <!-- Evalueringsdato -->
+                <div class="mb-3">
+                    <label class="form-label fw-bold">Evalueringsdato</label>
+                    <input value="@Model.SelfEvaluation.EvaluationDate.ToString("dd.MM.yyyy HH:mm")" disabled class="form-control" />
+                </div>
+                <div class="mb-3">
+                    <label class="form-label fw-bold">Sidst opdateret</label>
+                    <input value="@Model.SelfEvaluation.LastUpdated.ToString("dd.MM.yyyy HH:mm")" disabled class="form-control" />
+                </div>
+
+                <!-- Actions -->
+                <div class="d-flex justify-content-between">
+                    <a class="btn btn-outline-primary" asp-page="./Index">Tilbage</a>
+                    <button type="submit" class="btn btn-primary" id="approveBtn">Godkend</button>
+                </div>
+
+                <!-- Bootstrap Modal -->
+                <div class="modal fade" id="approveModal" tabindex="-1" aria-labelledby="approveModalLabel" aria-hidden="true">
+                    <div class="modal-dialog modal-dialog-centered">
+                        <div class="modal-content">
+                            <div class="modal-header">
+                                <h5 class="modal-title" id="approveModalLabel">Bekræft godkendelse</h5>
+                                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Luk"></button>
+                            </div>
+                            <div class="modal-body">
+                                Du er ved at godkende uden at have udfyldt en kommentar eller årsag. Er du sikker på, at du vil fortsætte?
+                            </div>
+                            <div class="modal-footer">
+                                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Nej</button>
+                                <button type="button" class="btn btn-primary" id="confirmApproveBtn">Ja, godkend</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </form>
+    </div>
+</div>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+    <script src="~/js/selfevaluation-comment.js"></script>
+}

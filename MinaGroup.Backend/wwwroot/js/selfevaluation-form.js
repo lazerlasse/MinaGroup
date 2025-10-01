@@ -2,7 +2,10 @@
 document.addEventListener("DOMContentLoaded", function () {
     // element references
     const isSickEl = document.getElementById("SelfEvaluation_IsSick");
-    const notSickSection = document.getElementById("notSickSection");
+    const isNoShowEl = document.getElementById("SelfEvaluation_IsNoShow");
+    const showFormSection = document.getElementById("showFormSection");
+    const sickReasonSection = document.getElementById("sickReasonSection");
+    const noShowReasonSection = document.getElementById("noShowReasonSection");
 
     const hadBreakEl = document.getElementById("SelfEvaluation_HadBreak");
     const breakDurationSection = document.getElementById("breakDurationSection");
@@ -13,8 +16,12 @@ document.addEventListener("DOMContentLoaded", function () {
 
     const arrivalEl = document.getElementById("SelfEvaluation_ArrivalTime");
     const departureEl = document.getElementById("SelfEvaluation_DepartureTime");
-    const totalHoursHidden = document.getElementById("SelfEvaluation_TotalHours"); // hidden input (asp-for)
+    const totalHoursHidden = document.getElementById("SelfEvaluation_TotalHours");
     const totalHoursDisplay = document.getElementById("totalHoursDisplay");
+
+    const aidEl = document.getElementById("SelfEvaluation_Aid");
+    const aidDescriptionSection = document.getElementById("aidDescriptionSection");
+    const aidDescriptionEl = document.getElementById("SelfEvaluation_AidDescription");
 
     // Utility: parse "HH:mm" or "HH:mm:ss" -> minutes (integer) or null
     function parseTimeToMinutes(timeStr) {
@@ -52,23 +59,65 @@ document.addEventListener("DOMContentLoaded", function () {
         if (!sectionEl) return;
         sectionEl.style.display = visible ? "block" : "none";
 
-        // disable/enable children so they don't post when hidden
         const fields = sectionEl.querySelectorAll("input, select, textarea, button");
+        fields.forEach(f => f.disabled = !visible);
+    }
+
+    function clearSectionInputs(sectionEl) {
+        if (!sectionEl) return;
+        const fields = sectionEl.querySelectorAll("input, select, textarea");
         fields.forEach(f => {
-            // keep evaluation date and IsSick outside this section so safe to disable them here
-            f.disabled = !visible;
+            if (f.type === "checkbox" || f.type === "radio") {
+                f.checked = false;
+            } else if (f.tagName.toLowerCase() === "select") {
+                f.value = "";
+            } else {
+                f.value = "";
+            }
         });
     }
 
-    function toggleSick() {
+    function toggleFormSection() {
         const sick = isSickEl && isSickEl.checked;
-        setSectionVisibility(notSickSection, !sick);
+        const noShow = isNoShowEl && isNoShowEl.checked;
+
+        // Gensidig udelukkelse
+        if (sick && noShow) {
+            if (this === isSickEl) {
+                isNoShowEl.checked = false;
+            } else if (this === isNoShowEl) {
+                isSickEl.checked = false;
+            }
+        }
+
+        const activeSick = isSickEl && isSickEl.checked;
+        const activeNoShow = isNoShowEl && isNoShowEl.checked;
+
+        const shouldHideForm = activeSick || activeNoShow;
+        setSectionVisibility(showFormSection, !shouldHideForm);
+
+        // SickReason kun synlig hvis IsSick
+        setSectionVisibility(sickReasonSection, activeSick);
+        if (!activeSick) {
+            clearSectionInputs(sickReasonSection);
+        }
+
+        // NoShowReason kun synlig hvis IsNoShow
+        setSectionVisibility(noShowReasonSection, activeNoShow);
+        if (!activeNoShow) {
+            clearSectionInputs(noShowReasonSection);
+        }
+
+        if (shouldHideForm) {
+            clearSectionInputs(showFormSection);
+            if (aidEl) aidEl.value = "";
+            if (aidDescriptionEl) aidDescriptionEl.value = "";
+        }
     }
 
     function toggleBreak() {
         const hadBreak = hadBreakEl && hadBreakEl.checked;
         setSectionVisibility(breakDurationSection, hadBreak);
-        // if we're hiding break, also clear the value to avoid leftover values
         if (!hadBreak && breakDurationEl) {
             breakDurationEl.value = "";
         }
@@ -79,8 +128,18 @@ document.addEventListener("DOMContentLoaded", function () {
         const hadDiscomfort = hadDiscomfortEl && hadDiscomfortEl.checked;
         setSectionVisibility(discomfortDescriptionSection, hadDiscomfort);
         if (!hadDiscomfort) {
-            const el = discomfortDescriptionSection ? discomfortDescriptionSection.querySelector("input, textarea") : null;
-            if (el) el.value = "";
+            clearSectionInputs(discomfortDescriptionSection);
+        }
+    }
+
+    function toggleAid() {
+        if (!aidEl || !aidDescriptionSection) return;
+        const value = aidEl.value;
+        const needsDescription = (value === "Ja – hvilke?" || value === "Har brug for noget – hvad?");
+        setSectionVisibility(aidDescriptionSection, needsDescription);
+
+        if (!needsDescription && aidDescriptionEl) {
+            aidDescriptionEl.value = "";
         }
     }
 
@@ -93,13 +152,11 @@ document.addEventListener("DOMContentLoaded", function () {
         const breakMinutes = breakDurationEl ? parseTimeToMinutes(breakDurationEl.value) : 0;
 
         if (arrival == null || departure == null) {
-            // Not enough data
             totalHoursDisplay.value = "";
             if (totalHoursHidden) totalHoursHidden.value = "";
             return;
         }
 
-        // If departure is earlier than arrival assume next day? currently treat as negative -> empty
         let diff = departure - arrival - (isNaN(breakMinutes) ? 0 : breakMinutes);
 
         if (diff <= 0) {
@@ -112,23 +169,21 @@ document.addEventListener("DOMContentLoaded", function () {
         if (totalHoursHidden) totalHoursHidden.value = formatMinutesToHHMMSS(diff);
     }
 
-    // Safe wiring (some elements might not exist)
-    if (isSickEl) {
-        isSickEl.addEventListener("change", toggleSick);
-    }
-    if (hadBreakEl) {
-        hadBreakEl.addEventListener("change", toggleBreak);
-    }
-    if (hadDiscomfortEl) {
-        hadDiscomfortEl.addEventListener("change", toggleDiscomfort);
-    }
+    // Safe wiring
+    if (isSickEl) isSickEl.addEventListener("change", toggleFormSection);
+    if (isNoShowEl) isNoShowEl.addEventListener("change", toggleFormSection);
+    if (hadBreakEl) hadBreakEl.addEventListener("change", toggleBreak);
+    if (hadDiscomfortEl) hadDiscomfortEl.addEventListener("change", toggleDiscomfort);
+    if (aidEl) aidEl.addEventListener("change", toggleAid);
+
     if (arrivalEl) arrivalEl.addEventListener("input", calculateTotalHours);
     if (departureEl) departureEl.addEventListener("input", calculateTotalHours);
     if (breakDurationEl) breakDurationEl.addEventListener("input", calculateTotalHours);
 
-    // Initialize on load (keeps server-side posted values showing when page reloads with validation errors)
-    toggleSick();
+    // Initialize on load
+    toggleFormSection();
     toggleBreak();
     toggleDiscomfort();
+    toggleAid();
     calculateTotalHours();
 });

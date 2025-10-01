@@ -1,0 +1,34 @@
+﻿@using Microsoft.AspNetCore.Http.Features
+@inject IHttpContextAccessor HttpContextAccessor
+
+@{
+    var consentFeature = HttpContextAccessor.HttpContext?.Features.Get<ITrackingConsentFeature>();
+    var showBanner = !consentFeature?.CanTrack ?? false;
+    var cookieString = consentFeature?.CreateConsentCookie();
+}
+
+@if (showBanner)
+{
+    <div id="cookieConsent" class="alert alert-info alert-dismissible fade show" role="alert">
+        <div class="container">
+            <span>
+                Vi bruger cookies til at forbedre din oplevelse.
+                <a asp-page="/Privacy">Læs mere i vores privatlivs- og cookiepolitik</a>.
+            </span>
+            <button type="button" class="btn btn-primary btn-sm ms-3"
+                    data-cookie-string="@cookieString">
+                Accepter
+            </button>
+        </div>
+    </div>
+
+    <script>
+        (function () {
+            var button = document.querySelector("#cookieConsent button[data-cookie-string]");
+            button.addEventListener("click", function () {
+                document.cookie = button.dataset.cookieString;
+                document.getElementById("cookieConsent").style.display = "none";
+            });
+        })();
+    </script>
+}

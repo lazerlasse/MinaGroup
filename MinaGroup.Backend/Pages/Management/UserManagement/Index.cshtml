@@ -1,0 +1,55 @@
+﻿@page
+@model MinaGroup.Backend.Pages.Management.UserManagement.IndexModel
+
+@{
+    ViewData["Title"] = "Brugeradministration";
+}
+
+<h1 class="text-center display-4 mb-2 fw-bold text-primary">@ViewData["Title"]</h1>
+
+<partial name="_StatusMessage" />
+
+<div class="mb-3 d-flex align-items-start">
+    <form method="get" class="d-flex me-2 flex-grow-1">
+        <input class="form-control me-2" type="search" placeholder="Søg efter e-mail eller navn..." name="SearchString" value="@Model.CurrentFilter" />
+        <button class="btn btn-outline-primary d-flex align-items-center">
+            <i class="bi bi-search me-2"></i> Søg
+        </button>
+    </form>
+    <a class="btn btn-outline-secondary d-flex align-items-center me-2" asp-area="" asp-page="/Management/Index">
+        <i class="bi bi-x-circle me-2"></i> Tilbage
+    </a>
+    <a class="btn btn-outline-primary d-flex align-items-center" asp-area="Identity" asp-page="/Account/Register">
+        <i class="bi bi-person-plus-fill me-2"></i> Opret bruger
+    </a>
+</div>
+
+<table class="table table-striped">
+    <thead>
+        <tr>
+            <th>E-mail</th>
+            <th>Fornavn</th>
+            <th>Efternavn</th>
+            <th>Telefon</th>
+            <th>Roller</th>
+            <th></th>
+        </tr>
+    </thead>
+    <tbody>
+        @foreach (var user in Model.Users)
+        {
+            <tr>
+                <td>@user.Email</td>
+                <td>@user.FirstName</td>
+                <td>@user.LastName</td>
+                <td>@user.PhoneNumber</td>
+                <td>@string.Join(", ", user.Roles)</td>
+                <td>
+                    <a class="btn btn-sm btn-outline-primary" asp-page="./Details" asp-route-id="@user.Id">Vis</a>
+                    <a class="btn btn-sm btn-outline-warning" asp-page="./Edit" asp-route-id="@user.Id">Rediger</a>
+                    <a class="btn btn-sm btn-outline-danger" asp-page="./Delete" asp-route-id="@user.Id">Slet</a>
+                </td>
+            </tr>
+        }
+    </tbody>
+</table>

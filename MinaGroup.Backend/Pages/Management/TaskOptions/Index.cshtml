@@ -5,32 +5,38 @@
     ViewData["Title"] = "Arbejdsopgaver og Værkstedsoversigt";
 }
 
-<h1 class="text-center display-4 fw-bold text-primary">@ViewData["Title"]</h1>
+<h1 class="text-center display-4 mb-2 fw-bold text-primary">@ViewData["Title"]</h1>
+
+<partial name="_StatusMessage" />
+
+<br />
 
 <p>
-    <a class="btn btn-primary" asp-page="Create">Opret</a>
+    <a class="btn btn-outline-secondary me-2" asp-area="" asp-page="/Management/Index">
+        <i class="bi bi-x-circle me-2"></i> Tilbage
+    </a>
+    <a class="btn btn-outline-primary" asp-page="Create">
+        <i class="bi bi-plus-circle me-2"></i> Opret Ny
+    </a>
 </p>
 
-<table class="table">
+<table class="table table-striped">
     <thead>
         <tr>
-            <th>
-                @Html.DisplayNameFor(model => model.TaskOption[0].TaskName)
-            </th>
+            <th>@Html.DisplayNameFor(model => model.TaskOption[0].TaskName)</th>
             <th></th>
         </tr>
     </thead>
     <tbody>
-@foreach (var item in Model.TaskOption) {
-        <tr>
-            <td>
-                @Html.DisplayFor(modelItem => item.TaskName)
-            </td>
-            <td>
-                <a asp-page="./Edit" asp-route-id="@item.TaskOptionId">Rediger</a> |
-                <a asp-page="./Delete" asp-route-id="@item.TaskOptionId">Slet</a>
-            </td>
-        </tr>
-}
+        @foreach (var item in Model.TaskOption)
+        {
+            <tr>
+                <td>@Html.DisplayFor(modelItem => item.TaskName)</td>
+                <td>
+                    <a class="btn btn-sm btn-outline-warning" asp-page="./Edit" asp-route-id="@item.TaskOptionId">Rediger</a>
+                    <a class="btn btn-sm btn-outline-danger" asp-page="./Delete" asp-route-id="@item.TaskOptionId">Slet</a>
+                </td>
+            </tr>
+        }
     </tbody>
 </table>

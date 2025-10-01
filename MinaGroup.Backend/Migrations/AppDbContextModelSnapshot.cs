@@ -173,6 +173,10 @@ namespace MinaGroup.Backend.Migrations
                     b.Property<bool>("EmailConfirmed")
                         .HasColumnType("tinyint(1)");
 
+                    b.Property<string>("EncryptedPersonNumber")
+                        .HasMaxLength(512)
+                        .HasColumnType("varchar(512)");
+
                     b.Property<string>("FirstName")
                         .IsRequired()
                         .HasColumnType("longtext");
@@ -204,9 +208,9 @@ namespace MinaGroup.Backend.Migrations
                     b.Property<string>("PasswordHash")
                         .HasColumnType("longtext");
 
-                    b.Property<int?>("PersonNumberCPR")
-                        .HasMaxLength(8)
-                        .HasColumnType("int");
+                    b.Property<string>("PersonNumberHash")
+                        .HasMaxLength(512)
+                        .HasColumnType("varchar(512)");
 
                     b.Property<string>("PhoneNumber")
                         .HasColumnType("longtext");
@@ -219,6 +223,9 @@ namespace MinaGroup.Backend.Migrations
 
                     b.Property<DateTime>("RefreshTokenExpiryTime")
                         .HasColumnType("datetime(6)");
+
+                    b.Property<int?>("ScheduledDays")
+                        .HasColumnType("int");
 
                     b.Property<string>("SecurityStamp")
                         .HasColumnType("longtext");
@@ -256,6 +263,9 @@ namespace MinaGroup.Backend.Migrations
                     b.Property<string>("AidDescription")
                         .HasColumnType("longtext");
 
+                    b.Property<string>("ApprovedByUserId")
+                        .HasColumnType("varchar(255)");
+
                     b.Property<string>("ArrivalStatus")
                         .HasColumnType("longtext");
 
@@ -292,6 +302,12 @@ namespace MinaGroup.Backend.Migrations
                     b.Property<bool>("HadDiscomfort")
                         .HasColumnType("tinyint(1)");
 
+                    b.Property<bool>("IsApproved")
+                        .HasColumnType("tinyint(1)");
+
+                    b.Property<bool>("IsNoShow")
+                        .HasColumnType("tinyint(1)");
+
                     b.Property<bool>("IsSick")
                         .HasColumnType("tinyint(1)");
 
@@ -299,6 +315,12 @@ namespace MinaGroup.Backend.Migrations
                         .HasColumnType("datetime(6)");
 
                     b.Property<string>("NextMeetingNotes")
+                        .HasColumnType("longtext");
+
+                    b.Property<string>("NoShowReason")
+                        .HasColumnType("longtext");
+
+                    b.Property<string>("SickReason")
                         .HasColumnType("longtext");
 
                     b.Property<TimeSpan?>("TotalHours")
@@ -309,6 +331,8 @@ namespace MinaGroup.Backend.Migrations
                         .HasColumnType("varchar(255)");
 
                     b.HasKey("Id");
+
+                    b.HasIndex("ApprovedByUserId");
 
                     b.HasIndex("UserId");
 
@@ -400,11 +424,17 @@ namespace MinaGroup.Backend.Migrations
 
             modelBuilder.Entity("MinaGroup.Backend.Models.SelfEvaluation", b =>
                 {
-                    b.HasOne("MinaGroup.Backend.Models.AppUser", "User")
+                    b.HasOne("MinaGroup.Backend.Models.AppUser", "ApprovedByUser")
                         .WithMany()
+                        .HasForeignKey("ApprovedByUserId");
+
+                    b.HasOne("MinaGroup.Backend.Models.AppUser", "User")
+                        .WithMany("SelfEvaluations")
                         .HasForeignKey("UserId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
+
+                    b.Navigation("ApprovedByUser");
 
                     b.Navigation("User");
                 });
@@ -422,6 +452,11 @@ namespace MinaGroup.Backend.Migrations
                         .HasForeignKey("SelfEvaluationId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
+                });
+
+            modelBuilder.Entity("MinaGroup.Backend.Models.AppUser", b =>
+                {
+                    b.Navigation("SelfEvaluations");
                 });
 #pragma warning restore 612, 618
         }

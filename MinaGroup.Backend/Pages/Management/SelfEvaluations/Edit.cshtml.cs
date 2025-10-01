@@ -1,92 +1,126 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Linq;
 using System.Threading.Tasks;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 using MinaGroup.Backend.Data;
 using MinaGroup.Backend.Models;
 
 namespace MinaGroup.Backend.Pages.Management.SelfEvaluations
 {
+    [Authorize(Roles = "Admin")]
     public class EditModel : PageModel
     {
         private readonly AppDbContext _context;
+        private readonly ILogger<EditModel> _logger;
 
-        public EditModel(AppDbContext context)
+        public EditModel(AppDbContext context, ILogger<EditModel> logger)
         {
-            _context = context;
+            _context = context ?? throw new ArgumentNullException(nameof(context));
+            _logger = logger ?? throw new ArgumentNullException(nameof(logger));
         }
 
         [BindProperty]
-        public SelfEvaluation SelfEvaluation { get; set; } = default!;
+        public SelfEvaluation Evaluation { get; set; } = new();
 
-        // Dropdown options (samme som i appen)
-        public List<string> ArrivalOptions { get; } = ["Intet valgt", "Til tiden", "Forsent", "Aftalt forsinkelse"];
-        public List<string> CollaborationOptions { get; } = ["Intet valgt", "Godt", "Okay", "Dårligt"];
-        public List<string> AssistanceOptions { get; } = ["Intet valgt", "Klarer det selv", "Lidt hjælp", "Meget hjælp"];
-        public List<string> AidOptions { get; } = ["Nej", "Ja – hvilke?", "Har brug for noget – hvad?"];
+        public List<string> ArrivalOptions { get; set; } = ["Intet valgt", "Til tiden", "Forsent", "Aftalt forsinkelse"];
+        public List<string> CollaborationOptions { get; set; } = ["Intet valgt", "Godt", "Okay", "Dårligt"];
+        public List<string> AssistanceOptions { get; set; } = ["Intet valgt", "Klarer det selv", "Lidt hjælp", "Meget hjælp"];
+        public List<string> AidOptions { get; set; } = ["Nej", "Ja – hvilke?", "Har brug for noget – hvad?"];
 
         public async Task<IActionResult> OnGetAsync(int id)
         {
-            var selfEvaluation = await _context.SelfEvaluations
-                .Include(s => s.User)
-                .FirstOrDefaultAsync(m => m.Id == id);
+            if (User == null || !User.IsInRole("Admin"))
+                return Unauthorized();
 
-            if (selfEvaluation == null)
-            {
-                return NotFound();
-            }
-
-            SelfEvaluation = selfEvaluation;
-            return Page();
-        }
-
-        public async Task<IActionResult> OnPostAsync()
-        {
             try
             {
-                var evaluation = await _context.SelfEvaluations.FirstOrDefaultAsync(e => e.Id == SelfEvaluation.Id);
+                var evaluation = await _context.SelfEvaluations
+                    .Include(e => e.User)
+                    .FirstOrDefaultAsync(e => e.Id == id);
+
                 if (evaluation == null)
-                    return NotFound("Kunne ikke indlæse data! Forsøg venligst igen.");
+                {
+                    _logger.LogWarning("Edit attempt failed: No SelfEvaluation found with Id {Id}", id);
+                    TempData["ErrorMessage"] = "Evalueringen kunne ikke findes.";
+                    return RedirectToPage("./Index");
+                }
 
-                evaluation.IsSick = SelfEvaluation.IsSick;
-                evaluation.ArrivalTime = SelfEvaluation.ArrivalTime;
-                evaluation.DepartureTime = SelfEvaluation.DepartureTime;
-                evaluation.TotalHours = SelfEvaluation.TotalHours;
-                evaluation.HadBreak = SelfEvaluation.HadBreak;
-                evaluation.BreakDuration = SelfEvaluation.BreakDuration;
-                evaluation.ArrivalStatus = SelfEvaluation.ArrivalStatus;
-                evaluation.Collaboration = SelfEvaluation.Collaboration;
-                evaluation.Assistance = SelfEvaluation.Assistance;
-                evaluation.Aid = SelfEvaluation.Aid;
-                evaluation.AidDescription = SelfEvaluation.AidDescription;
-                evaluation.HadDiscomfort = SelfEvaluation.HadDiscomfort;
-                evaluation.DiscomfortDescription = SelfEvaluation.DiscomfortDescription;
-                evaluation.NextMeetingNotes = SelfEvaluation.NextMeetingNotes;
-                evaluation.CommentFromLeader = SelfEvaluation.CommentFromLeader;
-                evaluation.LastUpdated = DateTime.UtcNow;
-
-                await _context.SaveChangesAsync();
-            }
-            catch (DbUpdateConcurrencyException ex)
-            {
-                // Log fx via ILogger<EditModel>
-                if (!_context.SelfEvaluations.Any(e => e.Id == SelfEvaluation.Id))
-                    return NotFound("Evalueringen findes ikke længere.");
-
-                ModelState.AddModelError(string.Empty, "Der opstod en konflikt – en anden har måske rettet i denne evaluering samtidig.");
+                Evaluation = evaluation;
                 return Page();
             }
             catch (Exception ex)
             {
-                // Log exception
-                ModelState.AddModelError(string.Empty, "Der opstod en uventet fejl. Kontakt support, hvis problemet fortsætter.");
-                return Page();
+                _logger.LogError(ex, "Error while fetching SelfEvaluation with Id {Id}", id);
+                TempData["ErrorMessage"] = "Der opstod en fejl under indlæsning af selvevalueringen.";
+                return RedirectToPage("./Index");
+            }
+        }
+
+        public async Task<IActionResult> OnPostAsync()
+        {
+            if (User == null || !User.IsInRole("Admin"))
+                return Forbid();
+
+            if (Evaluation == null)
+            {
+                _logger.LogWarning("OnPostAsync called with null Evaluation model.");
+                TempData["ErrorMessage"] = "Ugyldig data blev sendt. Prøv igen.";
+                return RedirectToPage("./Index");
             }
 
-            return RedirectToPage("./Index");
+            try
+            {
+                var evalInDb = await _context.SelfEvaluations
+                    .FirstOrDefaultAsync(e => e.Id == Evaluation.Id);
+
+                if (evalInDb == null)
+                {
+                    _logger.LogWarning("Update attempt failed: No SelfEvaluation found with Id {Id}", Evaluation.Id);
+                    TempData["ErrorMessage"] = "Evalueringen kunne ikke findes.";
+                    return RedirectToPage("./Index");
+                }
+
+                // Opdater felter (kun Admin kan redigere her)
+                evalInDb.IsSick = Evaluation.IsSick;
+                evalInDb.IsNoShow = Evaluation.IsNoShow;
+                evalInDb.NoShowReason = Evaluation.NoShowReason;
+                evalInDb.ArrivalTime = Evaluation.ArrivalTime;
+                evalInDb.DepartureTime = Evaluation.DepartureTime;
+                evalInDb.TotalHours = Evaluation.TotalHours;
+                evalInDb.HadBreak = Evaluation.HadBreak;
+                evalInDb.BreakDuration = Evaluation.BreakDuration;
+                evalInDb.ArrivalStatus = Evaluation.ArrivalStatus;
+                evalInDb.Collaboration = Evaluation.Collaboration;
+                evalInDb.Assistance = Evaluation.Assistance;
+                evalInDb.Aid = Evaluation.Aid;
+                evalInDb.AidDescription = Evaluation.AidDescription;
+                evalInDb.HadDiscomfort = Evaluation.HadDiscomfort;
+                evalInDb.DiscomfortDescription = Evaluation.DiscomfortDescription;
+                evalInDb.NextMeetingNotes = Evaluation.NextMeetingNotes;
+                evalInDb.CommentFromLeader = Evaluation.CommentFromLeader;
+
+                await _context.SaveChangesAsync();
+
+                _logger.LogInformation("SelfEvaluation with Id {Id} successfully updated by {User}", Evaluation.Id, User.Identity?.Name);
+                TempData["SuccessMessage"] = "Evalueringen blev opdateret med succes.";
+                return RedirectToPage("./Index");
+            }
+            catch (DbUpdateException dbEx)
+            {
+                _logger.LogError(dbEx, "Database error while updating SelfEvaluation with Id {Id}", Evaluation.Id);
+                TempData["ErrorMessage"] = "Der opstod en databasefejl. Prøv igen senere.";
+                return Page();
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Unexpected error while updating SelfEvaluation with Id {Id}", Evaluation.Id);
+                TempData["ErrorMessage"] = "Der opstod en fejl under opdatering af selvevalueringen.";
+                return RedirectToPage("./Index");
+            }
         }
     }
 }

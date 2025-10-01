@@ -1,8 +1,10 @@
-﻿@page
+﻿@page "{userId?}/{evaluationDate?}"
 @model MinaGroup.Backend.Pages.Management.SelfEvaluations.CreateModel
 
 @{
-    ViewData["Title"] = "Opret Selvevalueringsskema";
+    // Hvis der kommer parametre med, viser vi "Udfyld evaluering" - ellers "Opret Selvevalueringsskema"
+    var hasRouteParams = !string.IsNullOrEmpty(Model.RouteUserId) && Model.RouteEvaluationDate.HasValue;
+    ViewData["Title"] = hasRouteParams ? "Udfyld evaluering" : "Opret Selvevalueringsskema";
 }
 
 <h1 class="text-center display-4 fw-bold text-primary mb-4">@ViewData["Title"]</h1>
@@ -14,13 +16,26 @@
         <form method="post" class="p-4 border rounded shadow-sm bg-light">
             <div asp-validation-summary="ModelOnly" class="text-danger mb-3"></div>
 
+            <!-- Hidden binding -->
+            <input type="hidden" asp-for="SelfEvaluation.UserId" />
+            <input type="hidden" asp-for="SelfEvaluation.EvaluationDate" />
+
+            <!-- Borger: hvis route param er sat vis readonly navn, ellers dropdown -->
             <div class="mb-3">
-                <label asp-for="SelfEvaluation.UserId" class="form-label fw-bold">Borger</label>
-                <select asp-for="SelfEvaluation.UserId" class="form-select"
-                        asp-items="@(ViewData["UserId"] as SelectList)"></select>
-                <span asp-validation-for="SelfEvaluation.UserId" class="text-danger"></span>
+                <label class="form-label fw-bold">Borger</label>
+                @if (!string.IsNullOrEmpty(Model.RouteUserId) && !string.IsNullOrEmpty(Model.UserFullName))
+                {
+                    <input value="@Model.UserFullName" class="form-control" readonly />
+                }
+                else
+                {
+                    <select asp-for="SelfEvaluation.UserId" class="form-select"
+                            asp-items="@(ViewData["UserId"] as SelectList)"></select>
+                    <span asp-validation-for="SelfEvaluation.UserId" class="text-danger"></span>
+                }
             </div>
 
+            <!-- Sygdom -->
             <div class="mb-3">
                 <label class="form-label fw-bold">@Html.DisplayNameFor(m => m.SelfEvaluation.IsSick)</label>
                 <div>
@@ -29,17 +44,38 @@
                 </div>
             </div>
 
-            <!-- alt andet indhold pakkes i denne sektion og skjules når IsSick===true -->
-            <div id="notSickSection">
+            <div class="mb-3" id="sickReasonSection">
+                <label class="form-label fw-bold">@Html.DisplayNameFor(m => m.SelfEvaluation.SickReason)</label>
+                <textarea asp-for="SelfEvaluation.SickReason" class="form-control"></textarea>
+                <span asp-validation-for="SelfEvaluation.SickReason" class="text-danger"></span>
+            </div>
+
+            <!-- Udeblevet -->
+            <div class="mb-3">
+                <label class="form-label fw-bold">@Html.DisplayNameFor(m => m.SelfEvaluation.IsNoShow)</label>
+                <div>
+                    <input class="form-check-input me-2" asp-for="SelfEvaluation.IsNoShow" id="SelfEvaluation_IsNoShow" />
+                    <span asp-validation-for="SelfEvaluation.IsNoShow" class="text-danger"></span>
+                </div>
+            </div>
+
+            <div class="mb-3" id="noShowReasonSection">
+                <label class="form-label fw-bold">@Html.DisplayNameFor(m => m.SelfEvaluation.NoShowReason)</label>
+                <textarea asp-for="SelfEvaluation.NoShowReason" class="form-control"></textarea>
+                <span asp-validation-for="SelfEvaluation.NoShowReason" class="text-danger"></span>
+            </div>
+
+            <!-- alt andet indhold pakkes i denne sektion og skjules når IsSick===true via JS -->
+            <div id="showFormSection">
                 <div class="mb-3">
                     <label asp-for="SelfEvaluation.ArrivalTime" class="form-label fw-bold"></label>
-                    <input asp-for="SelfEvaluation.ArrivalTime" type="time" step="60" class="form-control" id="SelfEvaluation_ArrivalTime" />
+                    <input asp-for="SelfEvaluation.ArrivalTime" type="time" class="form-control" id="SelfEvaluation_ArrivalTime" />
                     <span asp-validation-for="SelfEvaluation.ArrivalTime" class="text-danger"></span>
                 </div>
 
                 <div class="mb-3">
                     <label asp-for="SelfEvaluation.DepartureTime" class="form-label fw-bold"></label>
-                    <input asp-for="SelfEvaluation.DepartureTime" type="time" step="60" class="form-control" id="SelfEvaluation_DepartureTime" />
+                    <input asp-for="SelfEvaluation.DepartureTime" type="time" class="form-control" id="SelfEvaluation_DepartureTime" />
                     <span asp-validation-for="SelfEvaluation.DepartureTime" class="text-danger"></span>
                 </div>
 
@@ -62,37 +98,41 @@
 
                 <div class="mb-3" id="breakDurationSection">
                     <label asp-for="SelfEvaluation.BreakDuration" class="form-label fw-bold"></label>
-                    <input asp-for="SelfEvaluation.BreakDuration" type="time" step="60" class="form-control" id="SelfEvaluation_BreakDuration" />
+                    <input asp-for="SelfEvaluation.BreakDuration" type="time" class="form-control" id="SelfEvaluation_BreakDuration" />
                     <span asp-validation-for="SelfEvaluation.BreakDuration" class="text-danger"></span>
                 </div>
 
                 <div class="mb-3">
                     <label asp-for="SelfEvaluation.ArrivalStatus" class="form-label fw-bold"></label>
                     <select asp-for="SelfEvaluation.ArrivalStatus" class="form-select"
-                            asp-items="@(new SelectList(Model.ArrivalOptions))"></select>
+                            asp-items="@(new SelectList(Model.ArrivalOptions, Model.SelfEvaluation?.ArrivalStatus))"></select>
                 </div>
 
                 <div class="mb-3">
                     <label asp-for="SelfEvaluation.Collaboration" class="form-label fw-bold"></label>
                     <select asp-for="SelfEvaluation.Collaboration" class="form-select"
-                            asp-items="@(new SelectList(Model.CollaborationOptions))"></select>
+                            asp-items="@(new SelectList(Model.CollaborationOptions, Model.SelfEvaluation?.Collaboration))"></select>
                 </div>
 
                 <div class="mb-3">
                     <label asp-for="SelfEvaluation.Assistance" class="form-label fw-bold"></label>
                     <select asp-for="SelfEvaluation.Assistance" class="form-select"
-                            asp-items="@(new SelectList(Model.AssistanceOptions))"></select>
+                            asp-items="@(new SelectList(Model.AssistanceOptions, Model.SelfEvaluation?.Assistance))"></select>
                 </div>
 
                 <div class="mb-3">
                     <label asp-for="SelfEvaluation.Aid" class="form-label fw-bold"></label>
-                    <select asp-for="SelfEvaluation.Aid" class="form-select"
-                            asp-items="@(new SelectList(Model.AidOptions))"></select>
+                    <select asp-for="SelfEvaluation.Aid" class="form-select" id="SelfEvaluation_Aid">
+                        @foreach (var option in Model.AidOptions)
+                        {
+                            <option value="@option" selected="@(option == Model.SelfEvaluation?.Aid ? "selected" : null)">@option</option>
+                        }
+                    </select>
                 </div>
 
-                <div class="mb-3">
+                <div class="mb-3" id="aidDescriptionSection" style="display:none">
                     <label asp-for="SelfEvaluation.AidDescription" class="form-label fw-bold"></label>
-                    <input asp-for="SelfEvaluation.AidDescription" class="form-control" />
+                    <input asp-for="SelfEvaluation.AidDescription" class="form-control" id="SelfEvaluation_AidDescription" />
                     <span asp-validation-for="SelfEvaluation.AidDescription" class="text-danger"></span>
                 </div>
 
@@ -124,30 +164,52 @@
 
                 <div class="mb-3">
                     <label asp-for="SelfEvaluation.CommentFromLeader" class="form-label fw-bold"></label>
-                    <input asp-for="SelfEvaluation.CommentFromLeader" class="form-control" />
+                    <textarea asp-for="SelfEvaluation.CommentFromLeader" class="form-control"></textarea>
                     <span asp-validation-for="SelfEvaluation.CommentFromLeader" class="text-danger"></span>
                 </div>
+
+                @* Valgfri: checkbox-liste for TaskOptions hvis I bruger dette *@
+                @if (Model.TaskOptions?.Any() == true)
+                {
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">Dagens aktiviteter</label>
+                        <div class="d-flex flex-wrap gap-2">
+                            @foreach (var t in Model.TaskOptions)
+                            {
+                                <div class="form-check">
+                                    <input class="form-check-input" type="checkbox" name="SelectedTaskIds" value="@t.TaskOptionId" />
+                                    <label class="form-check-label">@t.TaskName</label>
+                                </div>
+                            }
+                        </div>
+                    </div>
+                }
             </div> <!-- /notSickSection -->
 
             <div class="mb-3">
                 <label asp-for="SelfEvaluation.EvaluationDate" class="form-label fw-bold"></label>
-                <input asp-for="SelfEvaluation.EvaluationDate" class="form-control" type="date" />
-                <span asp-validation-for="SelfEvaluation.EvaluationDate" class="text-danger"></span>
+                @if (Model.RouteEvaluationDate.HasValue)
+                {
+                    <input value="@Model.RouteEvaluationDate.Value.ToString("dd.MM.yyyy")" class="form-control" readonly />
+                }
+                else
+                {
+                    <input asp-for="SelfEvaluation.EvaluationDate" class="form-control" type="date" />
+                    <span asp-validation-for="SelfEvaluation.EvaluationDate" class="text-danger"></span>
+                }
             </div>
 
             <div class="d-flex justify-content-between">
                 <a class="btn btn-outline-secondary" asp-page="./Index">Fortryd</a>
-                <input type="submit" value="Opret" class="btn btn-primary" />
+                <button type="submit" class="btn btn-outline-primary">Opret / Gem</button>
             </div>
         </form>
     </div>
 </div>
 
 @section Scripts {
-    @{
-        await Html.RenderPartialAsync("_ValidationScriptsPartial");
-    }
+    @await Html.PartialAsync("_ValidationScriptsPartial")
 
-    <!-- Load the client-side logic (toggling + totalHours calc & timespan support) -->
+    <!-- JS som styrer vis/skjul og beregner TotalHours (samme fil som tidligere) -->
     <script src="~/js/selfevaluation-form.js"></script>
 }

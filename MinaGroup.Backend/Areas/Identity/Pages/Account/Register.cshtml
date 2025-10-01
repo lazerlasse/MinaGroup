@@ -1,64 +1,112 @@
 ﻿@page
 @model RegisterModel
+
 @{
-    ViewData["Title"] = "Register";
+    ViewData["Title"] = "Opret ny bruger";
 }
 
-<h1>@ViewData["Title"]</h1>
+<h1 class="text-center display-4 fw-bold text-primary mb-4">@ViewData["Title"]</h1>
 
-<div class="row">
-    <div class="col-md-4">
-        <form id="registerForm" asp-route-returnUrl="@Model.ReturnUrl" method="post">
-            <h2>Create a new account.</h2>
-            <hr />
-            <div asp-validation-summary="ModelOnly" class="text-danger" role="alert"></div>
-            <div class="form-floating mb-3">
-                <input asp-for="Input.Email" class="form-control" autocomplete="username" aria-required="true" placeholder="name@example.com" />
-                <label asp-for="Input.Email">Email</label>
-                <span asp-validation-for="Input.Email" class="text-danger"></span>
-            </div>
-            <div class="form-floating mb-3">
-                <input asp-for="Input.Password" class="form-control" autocomplete="new-password" aria-required="true" placeholder="password" />
-                <label asp-for="Input.Password">Password</label>
-                <span asp-validation-for="Input.Password" class="text-danger"></span>
-            </div>
-            <div class="form-floating mb-3">
-                <input asp-for="Input.ConfirmPassword" class="form-control" autocomplete="new-password" aria-required="true" placeholder="password" />
-                <label asp-for="Input.ConfirmPassword">Confirm Password</label>
-                <span asp-validation-for="Input.ConfirmPassword" class="text-danger"></span>
-            </div>
-            <button id="registerSubmit" type="submit" class="w-100 btn btn-lg btn-primary">Register</button>
-        </form>
-    </div>
-    <div class="col-md-6 col-md-offset-2">
-        <section>
-            <h3>Use another service to register.</h3>
-            <hr />
-            @{
-                if ((Model.ExternalLogins?.Count ?? 0) == 0)
-                {
-                    <div>
-                        <p>
-                            There are no external authentication services configured. See this <a href="https://go.microsoft.com/fwlink/?LinkID=532715">article
-                            about setting up this ASP.NET application to support logging in via external services</a>.
-                        </p>
-                    </div>
-                }
-                else
-                {
-                    <form id="external-account" asp-page="./ExternalLogin" asp-route-returnUrl="@Model.ReturnUrl" method="post" class="form-horizontal">
-                        <div>
-                            <p>
-                                @foreach (var provider in Model.ExternalLogins!)
-                                {
-                                    <button type="submit" class="btn btn-primary" name="provider" value="@provider.Name" title="Log in using your @provider.DisplayName account">@provider.DisplayName</button>
-                                }
-                            </p>
+<div class="row justify-content-center">
+    <div class="col-md-6">
+        <div class="p-4 border rounded shadow-sm bg-light">
+            <form method="post">
+                <div asp-validation-summary="ModelOnly" class="text-danger mb-3"></div>
+
+                <h5 class="fw-bold mb-2">Personlige oplysninger</h5>
+                <div class="form-floating mb-3">
+                    <input asp-for="Input.PersonNumberCPR" class="form-control" placeholder="xxxxxx-xxxx" />
+                    <label asp-for="Input.PersonNumberCPR">CPR-nummer</label>
+                    <span asp-validation-for="Input.PersonNumberCPR" class="text-danger"></span>
+                </div>
+
+                <div class="form-floating mb-3">
+                    <input asp-for="Input.FirstName" class="form-control" placeholder="Fornavn" />
+                    <label asp-for="Input.FirstName">Fornavn</label>
+                    <span asp-validation-for="Input.FirstName" class="text-danger"></span>
+                </div>
+
+                <div class="form-floating mb-3">
+                    <input asp-for="Input.LastName" class="form-control" placeholder="Efternavn" />
+                    <label asp-for="Input.LastName">Efternavn</label>
+                    <span asp-validation-for="Input.LastName" class="text-danger"></span>
+                </div>
+
+                <div class="form-floating mb-3">
+                    <input asp-for="Input.Email" class="form-control" placeholder="Email" />
+                    <label asp-for="Input.Email">Email (og brugernavn)</label>
+                    <span asp-validation-for="Input.Email" class="text-danger"></span>
+                </div>
+
+                <div class="form-floating mb-3">
+                    <input asp-for="Input.PhoneNumber" class="form-control" placeholder="Telefonnummer" />
+                    <label asp-for="Input.PhoneNumber">Telefonnummer</label>
+                    <span asp-validation-for="Input.PhoneNumber" class="text-danger"></span>
+                </div>
+
+                <h5 class="fw-bold mb-2">Forløb og ansættelses periode</h5>
+                <div class="form-floating mb-3">
+                    <input asp-for="Input.JobStartDate" type="date" class="form-control" />
+                    <label asp-for="Input.JobStartDate">Job startdato</label>
+                    <span asp-validation-for="Input.JobStartDate" class="text-danger"></span>
+                </div>
+
+                <div class="form-floating mb-3">
+                    <input asp-for="Input.JobEndDate" type="date" class="form-control" />
+                    <label asp-for="Input.JobEndDate">Job slutdato</label>
+                    <span asp-validation-for="Input.JobEndDate" class="text-danger"></span>
+                </div>
+
+                <h5 class="fw-bold mb-2">Ugentlige arbejdsdage</h5>
+                <div class="mb-3 d-flex flex-wrap gap-3">
+                    @foreach (var day in Enum.GetValues(typeof(MinaGroup.Backend.Enums.WeekDays)).Cast<MinaGroup.Backend.Enums.WeekDays>())
+                    {
+                        if (day == MinaGroup.Backend.Enums.WeekDays.None) { continue; }
+
+                        <div class="form-check">
+                            <input class="form-check-input"
+                                   type="checkbox"
+                                   name="SelectedDays"
+                                   value="@day" />
+                            <label class="form-check-label">@day</label>
                         </div>
-                    </form>
-                }
-            }
-        </section>
+                    }
+                </div>
+
+                <h5 class="fw-bold mb-2">Tildelte bruger roller</h5>
+                <div class="mb-3 d-flex flex-wrap gap-3">
+                    @foreach (var role in Model.AllRoles)
+                    {
+                        <div class="form-check mb-2">
+                            <input class="form-check-input" type="checkbox" name="SelectedRoles" value="@role" />
+                            <label class="form-check-label">@role</label>
+                        </div>
+                    }
+                </div>
+
+                <h5 class="fw-bold mb-2">Angiv password</h5>
+                <div class="form-floating mb-3">
+                    <input asp-for="Input.Password" type="password" class="form-control" placeholder="Password" />
+                    <label asp-for="Input.Password">Password</label>
+                    <span asp-validation-for="Input.Password" class="text-danger"></span>
+                </div>
+
+                <div class="form-floating mb-3">
+                    <input asp-for="Input.ConfirmPassword" type="password" class="form-control" placeholder="Confirm Password" />
+                    <label asp-for="Input.ConfirmPassword">Bekræft password</label>
+                    <span asp-validation-for="Input.ConfirmPassword" class="text-danger"></span>
+                </div>
+
+                <div class="d-flex justify-content-between">
+                    <a asp-page="/Management/UserManagement/Index" class="btn btn-secondary">
+                        <i class="bi bi-x-circle"></i> Annuller
+                    </a>
+                    <button type="submit" class="btn btn-primary">
+                        <i class="bi bi-person-plus-fill"></i> Opret bruger
+                    </button>
+                </div>
+            </form>
+        </div>
     </div>
 </div>
 

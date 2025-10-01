@@ -5,12 +5,14 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>@ViewData["Title"] - MinaGroup.Backend</title>
     <link rel="stylesheet" href="~/lib/bootstrap/dist/css/bootstrap.min.css" />
+    <!-- Bootstrap Icons CSS -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css">
     <link rel="stylesheet" href="~/css/site.css" asp-append-version="true" />
     <link rel="stylesheet" href="~/MinaGroup.Backend.styles.css" asp-append-version="true" />
 </head>
 <body>
     <header>
-        <nav class="navbar navbar-expand-sm navbar-toggleable-sm navbar-light bg-white border-bottom box-shadow mb-3">
+        <nav class="navbar navbar-expand-sm navbar-toggleable-sm navbar-light custom-navbar mb-3">
             <div class="container">
                 <a class="navbar-brand" asp-area="" asp-page="/Index">Mina Group</a>
                 <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target=".navbar-collapse" aria-controls="navbarSupportedContent"
@@ -20,18 +22,21 @@
                 <div class="navbar-collapse collapse d-sm-inline-flex justify-content-between">
                     <ul class="navbar-nav flex-grow-1">
                         <li class="nav-item">
-                            <a class="nav-link text-dark" asp-area="" asp-page="/Index">Hjem</a>
+                            <a class="nav-link" asp-area="" asp-page="/Index">Hjem</a>
                         </li>
 
                         @if (User.Identity?.IsAuthenticated == true && (User.IsInRole("Admin") || User.IsInRole("SysAdmin") || User.IsInRole("Leder")))
                         {
                             <li class="nav-item">
-                                <a class="nav-link text-dark" asp-area="" asp-page="/Management/Index">Administrationspanel</a>
+                                <a class="nav-link" asp-area="" asp-page="/Management/Index">Administrationspanel</a>
                             </li>
                         }
 
                         <li class="nav-item">
-                            <a class="nav-link text-dark" asp-area="" asp-page="/Privacy">Privatlivspolitik</a>
+                            <a class="nav-link" asp-area="" asp-page="/Privacy">Privatlivspolitik</a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" asp-area="" asp-page="/CookiePolicy">Cookiepolitik</a>
                         </li>
                     </ul>
                     <partial name="_LoginPartial" />
@@ -39,11 +44,15 @@
             </div>
         </nav>
     </header>
+
     <div class="container">
         <main role="main" class="pb-3">
             @RenderBody()
         </main>
     </div>
+
+    <!-- Cookie Consent Banner -->
+    <partial name="_CookieConsentPartial" />
 
     <footer class="border-top footer text-muted">
         <div class="container">

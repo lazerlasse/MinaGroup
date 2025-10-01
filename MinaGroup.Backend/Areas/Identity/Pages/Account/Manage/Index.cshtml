@@ -1,27 +1,63 @@
 ﻿@page
 @model IndexModel
 @{
-    ViewData["Title"] = "Profile";
+    ViewData["Title"] = "Profil";
     ViewData["ActivePage"] = ManageNavPages.Index;
 }
 
-<h3>@ViewData["Title"]</h3>
-<partial name="_StatusMessage" for="StatusMessage" />
-<div class="row">
-    <div class="col-md-6">
-        <form id="profile-form" method="post">
-            <div asp-validation-summary="ModelOnly" class="text-danger" role="alert"></div>
-            <div class="form-floating mb-3">
-                <input asp-for="Username" class="form-control" placeholder="Please choose your username." disabled />
-                <label asp-for="Username" class="form-label"></label>
+<div class="row justify-content-center">
+    <div class="col-md-8">
+        <div class="card shadow-lg rounded-3 border-0">
+            <div class="card-body p-4">
+                <h2 class="text-center mb-3">Profiloplysninger</h2>
+                <partial name="_StatusMessage" for="StatusMessage" />
+                <hr />
+
+                <form id="profile-form" method="post">
+                    <div asp-validation-summary="ModelOnly" class="text-danger mb-3" role="alert"></div>
+
+                    <div class="form-floating mb-3">
+                        <input asp-for="Input.PersonNumberCPR" class="form-control" readonly />
+                        <label asp-for="Input.PersonNumberCPR" class="form-label">CPR-nummer</label>
+                    </div>
+
+                    <div class="form-floating mb-3">
+                        <input asp-for="Input.FirstName" class="form-control" readonly />
+                        <label asp-for="Input.FirstName" class="form-label">Fornavn</label>
+                    </div>
+
+                    <div class="form-floating mb-3">
+                        <input asp-for="Input.LastName" class="form-control" readonly />
+                        <label asp-for="Input.LastName" class="form-label">Efternavn</label>
+                    </div>
+
+                    <div class="form-floating mb-3">
+                        <input asp-for="Input.JobStartDate" class="form-control" type="date" readonly />
+                        <label asp-for="Input.JobStartDate" class="form-label">Ansættelsesdato</label>
+                    </div>
+
+                    <div class="form-floating mb-3">
+                        <input asp-for="Input.JobEndDate" class="form-control" type="date" readonly />
+                        <label asp-for="Input.JobEndDate" class="form-label">Fratrædelsesdato</label>
+                    </div>
+
+                    <div class="form-floating mb-3">
+                        <input asp-for="Input.PhoneNumber" class="form-control" placeholder="Telefonnummer" />
+                        <label asp-for="Input.PhoneNumber" class="form-label">Telefonnummer</label>
+                        <span asp-validation-for="Input.PhoneNumber" class="text-danger"></span>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">Roller</label>
+                        <input type="text" class="form-control" value="@string.Join(", ", Model.Roles)" readonly />
+                    </div>
+
+                    <button id="update-profile-button" type="submit" class="btn btn-primary w-100 py-2">
+                        Gem ændringer
+                    </button>
+                </form>
             </div>
-            <div class="form-floating mb-3">
-                <input asp-for="Input.PhoneNumber" class="form-control" placeholder="Please enter your phone number."/>
-                <label asp-for="Input.PhoneNumber" class="form-label"></label>
-                <span asp-validation-for="Input.PhoneNumber" class="text-danger"></span>
-            </div>
-            <button id="update-profile-button" type="submit" class="w-100 btn btn-lg btn-primary">Save</button>
-        </form>
+        </div>
     </div>
 </div>
 

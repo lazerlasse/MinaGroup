@@ -1,22 +1,65 @@
 html {
-  font-size: 14px;
+	font-size: 14px;
 }
 
 @media (min-width: 768px) {
-  html {
-    font-size: 16px;
-  }
+	html {
+		font-size: 16px;
+	}
 }
 
 .btn:focus, .btn:active:focus, .btn-link.nav-link:focus, .form-control:focus, .form-check-input:focus {
-  box-shadow: 0 0 0 0.1rem white, 0 0 0 0.25rem #258cfb;
+	box-shadow: 0 0 0 0.1rem white, 0 0 0 0.25rem #258cfb;
 }
 
 html {
-  position: relative;
-  min-height: 100%;
+	position: relative;
+	min-height: 100%;
 }
 
 body {
-  margin-bottom: 60px;
+	margin-bottom: 60px;
+}
+
+/* Navbar farve og skygge */
+/* Modern navbar */
+.custom-navbar {
+	background-color: #1E6091; /* Ny, dybere blå */
+	box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+	padding: 0.5rem 1rem;
+}
+
+.custom-navbar .navbar-brand {
+	font-weight: 700;
+	font-size: 1.25rem;
+	color: #ffffff;
+	letter-spacing: 0.5px;
+}
+
+.custom-navbar .nav-link {
+	color: #ffffff;
+	font-weight: 500;
+	margin-right: 0.5rem;
+	transition: color 0.3s ease, transform 0.2s ease;
+}
+
+.custom-navbar .nav-link:hover,
+.custom-navbar .nav-link:focus {
+	color: #ffdd57; /* let kontrastfarve ved hover */
+	transform: translateY(-2px);
+}
+
+.custom-navbar .navbar-toggler {
+	border-color: rgba(255, 255, 255, 0.5);
+}
+
+.custom-navbar .navbar-toggler-icon {
+	background-image: url("data:image/svg+xml;charset=utf8,%3Csvg viewBox='0 0 30 30' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath stroke='rgba%28255, 255, 255, 0.9%29' stroke-width='2' stroke-linecap='round' stroke-miterlimit='10' d='M4 7h22M4 15h22M4 23h22'/ %3E%3C/svg%3E");
+}
+
+/* Optional: small fade for dropdowns if added later */
+.custom-navbar .dropdown-menu {
+	border-radius: 0.25rem;
+	border: none;
+	box-shadow: 0 4px 12px rgba(0,0,0,0.15);
 }

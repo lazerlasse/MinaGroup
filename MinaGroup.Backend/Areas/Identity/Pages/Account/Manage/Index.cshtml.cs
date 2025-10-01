@@ -1,15 +1,13 @@
-﻿// Licensed to the .NET Foundation under one or more agreements.
-// The .NET Foundation licenses this file to you under the MIT license.
-#nullable disable
-
-using System;
+﻿using System;
+using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
-using System.Text.Encodings.Web;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
 using MinaGroup.Backend.Models;
+using MinaGroup.Backend.Services;
+using MinaGroup.Backend.Services.Interfaces; // ✅ tilføjet for EncryptionService
 
 namespace MinaGroup.Backend.Areas.Identity.Pages.Account.Manage
 {
@@ -17,61 +15,70 @@ namespace MinaGroup.Backend.Areas.Identity.Pages.Account.Manage
     {
         private readonly UserManager<AppUser> _userManager;
         private readonly SignInManager<AppUser> _signInManager;
+        private readonly ICryptoService _cryptoService; // ✅
 
         public IndexModel(
             UserManager<AppUser> userManager,
-            SignInManager<AppUser> signInManager)
+            SignInManager<AppUser> signInManager,
+            ICryptoService cryptoService) // ✅
         {
             _userManager = userManager;
             _signInManager = signInManager;
+            _cryptoService = cryptoService;
         }
 
-        /// <summary>
-        ///     This API supports the ASP.NET Core Identity default UI infrastructure and is not intended to be used
-        ///     directly from your code. This API may change or be removed in future releases.
-        /// </summary>
-        public string Username { get; set; }
-
-        /// <summary>
-        ///     This API supports the ASP.NET Core Identity default UI infrastructure and is not intended to be used
-        ///     directly from your code. This API may change or be removed in future releases.
-        /// </summary>
         [TempData]
-        public string StatusMessage { get; set; }
+        public string StatusMessage { get; set; } = string.Empty;
 
-        /// <summary>
-        ///     This API supports the ASP.NET Core Identity default UI infrastructure and is not intended to be used
-        ///     directly from your code. This API may change or be removed in future releases.
-        /// </summary>
         [BindProperty]
-        public InputModel Input { get; set; }
+        public InputModel Input { get; set; } = new InputModel();
 
-        /// <summary>
-        ///     This API supports the ASP.NET Core Identity default UI infrastructure and is not intended to be used
-        ///     directly from your code. This API may change or be removed in future releases.
-        /// </summary>
+        public IList<string> Roles { get; set; } = [];
+
         public class InputModel
         {
-            /// <summary>
-            ///     This API supports the ASP.NET Core Identity default UI infrastructure and is not intended to be used
-            ///     directly from your code. This API may change or be removed in future releases.
-            /// </summary>
+            [Display(Name = "Fornavn")]
+            public string FirstName { get; set; } = string.Empty;
+
+            [Display(Name = "Efternavn")]
+            public string LastName { get; set; } = string.Empty;
+
+            [StringLength(11)]
+            [RegularExpression(@"^\d{6}-\d{4}$", ErrorMessage = "CPR-nummer skal være 10 cifre i formatet xxxxxx-xxxx")]
+            public string? PersonNumberCPR { get; set; } = null;
+
+            [Display(Name = "Ansættelsesdato")]
+            [DataType(DataType.Date)]
+            public DateTime? JobStartDate { get; set; }
+
+            [Display(Name = "Fratrædelsesdato")]
+            [DataType(DataType.Date)]
+            public DateTime? JobEndDate { get; set; }
+
             [Phone]
-            [Display(Name = "Phone number")]
-            public string PhoneNumber { get; set; }
+            [Display(Name = "Telefonnummer")]
+            public string PhoneNumber { get; set; } = string.Empty;
         }
 
         private async Task LoadAsync(AppUser user)
         {
-            var userName = await _userManager.GetUserNameAsync(user);
             var phoneNumber = await _userManager.GetPhoneNumberAsync(user);
-
-            Username = userName;
+            var roles = await _userManager.GetRolesAsync(user);
 
             Input = new InputModel
             {
-                PhoneNumber = phoneNumber
+                FirstName = user.FirstName,
+                LastName = user.LastName,
+                // ✅ dekrypter CPR inden visning
+                PersonNumberCPR = string.IsNullOrEmpty(user.EncryptedPersonNumber) ? null : _cryptoService.Unprotect(user.EncryptedPersonNumber),
+                JobStartDate = user.JobStartDate,
+                JobEndDate = user.JobEndDate
             };
+
+            if (!string.IsNullOrEmpty(phoneNumber))
+                Input.PhoneNumber = phoneNumber;
+
+            Roles = roles;
         }
 
         public async Task<IActionResult> OnGetAsync()
@@ -79,7 +86,7 @@ namespace MinaGroup.Backend.Areas.Identity.Pages.Account.Manage
             var user = await _userManager.GetUserAsync(User);
             if (user == null)
             {
-                return NotFound($"Unable to load user with ID '{_userManager.GetUserId(User)}'.");
+                return NotFound($"Kunne ikke indlæse bruger med ID '{_userManager.GetUserId(User)}'.");
             }
 
             await LoadAsync(user);
@@ -91,7 +98,7 @@ namespace MinaGroup.Backend.Areas.Identity.Pages.Account.Manage
             var user = await _userManager.GetUserAsync(User);
             if (user == null)
             {
-                return NotFound($"Unable to load user with ID '{_userManager.GetUserId(User)}'.");
+                return NotFound($"Kunne ikke indlæse bruger med ID '{_userManager.GetUserId(User)}'.");
             }
 
             if (!ModelState.IsValid)
@@ -100,19 +107,41 @@ namespace MinaGroup.Backend.Areas.Identity.Pages.Account.Manage
                 return Page();
             }
 
+            // ✅ opdater felter
+            user.FirstName = Input.FirstName;
+            user.LastName = Input.LastName;
+            user.JobStartDate = Input.JobStartDate;
+            user.JobEndDate = Input.JobEndDate;
+
+            // ✅ krypter CPR inden gem
+            if (!string.IsNullOrWhiteSpace(Input.PersonNumberCPR))
+                user.EncryptedPersonNumber = _cryptoService.Protect(Input.PersonNumberCPR);
+
             var phoneNumber = await _userManager.GetPhoneNumberAsync(user);
             if (Input.PhoneNumber != phoneNumber)
             {
                 var setPhoneResult = await _userManager.SetPhoneNumberAsync(user, Input.PhoneNumber);
                 if (!setPhoneResult.Succeeded)
                 {
-                    StatusMessage = "Unexpected error when trying to set phone number.";
+                    StatusMessage = "Der opstod en fejl under opdatering af telefonnummer.";
                     return RedirectToPage();
                 }
             }
 
+            // ✅ gem ændringer
+            var updateResult = await _userManager.UpdateAsync(user);
+            if (!updateResult.Succeeded)
+            {
+                foreach (var error in updateResult.Errors)
+                {
+                    ModelState.AddModelError(string.Empty, error.Description);
+                }
+                await LoadAsync(user);
+                return Page();
+            }
+
             await _signInManager.RefreshSignInAsync(user);
-            StatusMessage = "Your profile has been updated";
+            StatusMessage = "Profilen er blevet opdateret";
             return RedirectToPage();
         }
     }

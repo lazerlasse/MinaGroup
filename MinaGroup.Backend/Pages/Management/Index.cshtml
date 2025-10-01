@@ -10,45 +10,52 @@
         Velkommen til administrationspanelet. Her kan du administrere selvevalueringer, indhold og brugere.
     </p>
 
-    <!-- Selvevalueringer -->
-    <div class="mb-5">
-        <h3 class="mb-3 text-secondary">Selvevalueringer</h3>
-        <div class="row g-4">
-            <div class="col-md-6 col-lg-4">
-                <div class="card shadow-sm border-0 h-100">
-                    <div class="card-body d-flex flex-column">
-                        <h5 class="card-title text-primary fw-bold">Evalueringsskemaer</h5>
-                        <p class="card-text text-muted flex-grow-1">
-                            Opret, rediger og administrer selvevalueringsskemaer fra appen.
-                        </p>
-                        <a asp-page="/Management/SelfEvaluations/Index" class="btn btn-primary mt-auto">
-                            Administrer
-                        </a>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
+    <partial name="_StatusMessage" />
 
-    <!-- Indholdsstyring -->
-    <div class="mb-5">
-        <h3 class="mb-3 text-secondary">Indholdsstyring</h3>
-        <div class="row g-4">
-            <div class="col-md-6 col-lg-4">
-                <div class="card shadow-sm border-0 h-100">
-                    <div class="card-body d-flex flex-column">
-                        <h5 class="card-title text-primary fw-bold">Arbejdsopgaver / Værksteder</h5>
-                        <p class="card-text text-muted flex-grow-1">
-                            Administrer værksteder og arbejdsopgaver som bruges i selvevalueringsskemaerne.
-                        </p>
-                        <a asp-page="/Management/TaskOptions/Index" class="btn btn-primary mt-auto">
-                            Administrer
-                        </a>
+    <hr />
+
+    @if (User.IsInRole("Admin") || User.IsInRole("Leder"))
+    {
+        <!-- Selvevalueringer -->
+        <div class="mb-5">
+            <h3 class="mb-3 text-secondary">Selvevalueringer</h3>
+            <div class="row g-4">
+                <div class="col-md-6 col-lg-4">
+                    <div class="card shadow-sm border-0 h-100">
+                        <div class="card-body d-flex flex-column">
+                            <h5 class="card-title text-primary fw-bold">Evalueringsskemaer</h5>
+                            <p class="card-text text-muted flex-grow-1">
+                                Opret, rediger og administrer selvevalueringsskemaer fra appen.
+                            </p>
+                            <a asp-page="/Management/SelfEvaluations/Index" class="btn btn-primary mt-auto">
+                                Administrer
+                            </a>
+                        </div>
                     </div>
                 </div>
             </div>
         </div>
-    </div>
+
+        <!-- Indholdsstyring -->
+        <div class="mb-5">
+            <h3 class="mb-3 text-secondary">Indholdsstyring</h3>
+            <div class="row g-4">
+                <div class="col-md-6 col-lg-4">
+                    <div class="card shadow-sm border-0 h-100">
+                        <div class="card-body d-flex flex-column">
+                            <h5 class="card-title text-primary fw-bold">Arbejdsopgaver / Værksteder</h5>
+                            <p class="card-text text-muted flex-grow-1">
+                                Administrer værksteder og arbejdsopgaver som bruges i selvevalueringsskemaerne.
+                            </p>
+                            <a asp-page="/Management/TaskOptions/Index" class="btn btn-primary mt-auto">
+                                Administrer
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    }
 
     <!-- Brugerstyring -->
     @if (User.Identity?.IsAuthenticated == true && (User.IsInRole("Admin") || User.IsInRole("SysAdmin")))
@@ -56,6 +63,7 @@
         <div class="mb-5">
             <h3 class="mb-3 text-secondary">Brugerstyring</h3>
             <div class="row g-4">
+
                 <div class="col-md-6 col-lg-4">
                     <div class="card shadow-sm border-0 h-100">
                         <div class="card-body d-flex flex-column">
@@ -63,26 +71,29 @@
                             <p class="card-text text-muted flex-grow-1">
                                 Se, rediger og administrer brugerkonti og deres information.
                             </p>
-                            <a asp-page="/Management/Users/Index" class="btn btn-primary mt-auto">
+                            <a asp-page="/Management/UserManagement/Index" class="btn btn-primary mt-auto">
                                 Administrer
                             </a>
                         </div>
                     </div>
                 </div>
 
-                <div class="col-md-6 col-lg-4">
-                    <div class="card shadow-sm border-0 h-100">
-                        <div class="card-body d-flex flex-column">
-                            <h5 class="card-title text-primary fw-bold">Administrer Brugerroller</h5>
-                            <p class="card-text text-muted flex-grow-1">
-                                Tildel roller og rettigheder til brugere for at styre adgangsniveauer.
-                            </p>
-                            <a asp-page="/Management/Roles/Index" class="btn btn-primary mt-auto">
-                                Administrer
-                            </a>
+                @if (User.IsInRole("SysAdmin"))
+                {
+                    <div class="col-md-6 col-lg-4">
+                        <div class="card shadow-sm border-0 h-100">
+                            <div class="card-body d-flex flex-column">
+                                <h5 class="card-title text-primary fw-bold">Administrer Brugerroller</h5>
+                                <p class="card-text text-muted flex-grow-1">
+                                    Tildel roller og rettigheder til brugere for at styre adgangsniveauer.
+                                </p>
+                                <a asp-page="/Management/RoleManagement/Index" class="btn btn-primary mt-auto">
+                                    Administrer
+                                </a>
+                            </div>
                         </div>
                     </div>
-                </div>
+                }
             </div>
         </div>
     }

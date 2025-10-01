@@ -1,0 +1,112 @@
+﻿@page "{id}"
+@model MinaGroup.Backend.Pages.Management.UserManagement.EditModel
+
+@{
+    ViewData["Title"] = "Rediger bruger";
+}
+
+<h1 class="text-center display-4 fw-bold text-primary mb-4">@ViewData["Title"]</h1>
+
+<hr />
+
+<div class="row justify-content-center">
+    <div class="col-md-8">
+        <div class="p-4 border rounded shadow-sm bg-light">
+            <form method="post">
+                <div asp-validation-summary="ModelOnly" class="text-danger mb-3"></div>
+
+                <input type="hidden" asp-for="Input.Id" />
+                
+                <div class="mb-3">
+                    <label asp-for="Input.PersonNumberCPR" class="form-label fw-bold">Personnummer / CPR</label>
+                    <input asp-for="Input.PersonNumberCPR" class="form-control" />
+                    <span asp-validation-for="Input.PersonNumberCPR" class="text-danger"></span>
+                </div>
+
+
+                <div class="mb-3">
+                    <label asp-for="Input.FirstName" class="form-label fw-bold"></label>
+                    <input asp-for="Input.FirstName" class="form-control" />
+                    <span asp-validation-for="Input.FirstName" class="text-danger"></span>
+                </div>
+
+                <div class="mb-3">
+                    <label asp-for="Input.LastName" class="form-label fw-bold"></label>
+                    <input asp-for="Input.LastName" class="form-control" />
+                    <span asp-validation-for="Input.LastName" class="text-danger"></span>
+                </div>
+
+                <div class="mb-3">
+                    <label asp-for="Input.Email" class="form-label fw-bold"></label>
+                    <input asp-for="Input.Email" class="form-control" />
+                    <span asp-validation-for="Input.Email" class="text-danger"></span>
+                </div>
+
+                <div class="mb-3">
+                    <label asp-for="Input.PhoneNumber" class="form-label fw-bold"></label>
+                    <input asp-for="Input.PhoneNumber" class="form-control" />
+                    <span asp-validation-for="Input.PhoneNumber" class="text-danger"></span>
+                </div>
+
+                <div class="mb-3">
+                    <label asp-for="Input.JobStartDate" class="form-label fw-bold">Job startdato</label>
+                    <input asp-for="Input.JobStartDate" type="date" class="form-control" />
+                    <span asp-validation-for="Input.JobStartDate" class="text-danger"></span>
+                </div>
+
+                <div class="mb-3">
+                    <label asp-for="Input.JobEndDate" class="form-label fw-bold">Job slutdato</label>
+                    <input asp-for="Input.JobEndDate" type="date" class="form-control" />
+                    <span asp-validation-for="Input.JobEndDate" class="text-danger"></span>
+                </div>
+
+                <div class="mb-3">
+                    <label class="form-label fw-bold">Ugentlige arbejdsdage</label>
+                    <div class="d-flex flex-wrap gap-3">
+                        @foreach (var day in Enum.GetValues(typeof(MinaGroup.Backend.Enums.WeekDays)).Cast<MinaGroup.Backend.Enums.WeekDays>())
+                        {
+                            if (day == MinaGroup.Backend.Enums.WeekDays.None) { continue; }
+
+                            <div class="form-check">
+                                <input class="form-check-input"
+                                       type="checkbox"
+                                       name="SelectedDays"
+                                       value="@day"
+                                       @(Model.Input.ScheduledDays.HasValue && Model.Input.ScheduledDays.Value.HasFlag(day) ? "checked" : "") />
+                                <label class="form-check-label">@day</label>
+                            </div>
+                        }
+                    </div>
+                </div>
+
+
+                <h5 class="fw-bold mt-4">Tildelte roller</h5>
+                <div class="mb-3">
+                    @foreach (var role in Model.AllRoles)
+                    {
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox"
+                                   name="SelectedRoles"
+                                   value="@role"
+                                   @(Model.Input.Roles.Contains(role) ? "checked" : "") />
+                            <label class="form-check-label">@role</label>
+                        </div>
+                    }
+                </div>
+
+                <div class="d-flex justify-content-between mt-4">
+                    <a asp-page="./Index" class="btn btn-outline-secondary">
+                        <i class="bi bi-x-circle"></i> Annuller
+                    </a>
+                    <button type="submit" class="btn btn-outline-primary fw-bold">
+                        <i class="bi bi-save"></i> Gem ændringer
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+}

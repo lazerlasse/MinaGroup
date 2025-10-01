@@ -20,7 +20,14 @@ namespace MinaGroup.Backend.Data
                 .HasMany(se => se.SelectedTask)
                 .WithMany() // Ingen navigation i TaskOption
                 .UsingEntity(j =>
-                    j.ToTable("SelfEvaluationTasks")); // Join-tabel
+                    j.ToTable("SelfEvaluationTasks"));
+
+            // Cascade delete: AppUser -> SelfEvaluations
+            modelBuilder.Entity<SelfEvaluation>()
+                .HasOne(se => se.User)
+                .WithMany(u => u.SelfEvaluations)
+                .HasForeignKey(se => se.UserId)
+                .OnDelete(DeleteBehavior.Cascade);
         }
     }
 }

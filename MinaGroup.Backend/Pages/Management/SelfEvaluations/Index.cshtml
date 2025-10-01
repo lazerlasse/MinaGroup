@@ -7,96 +7,209 @@
 
 <h1 class="text-center display-4 mb-2 fw-bold text-primary">@ViewData["Title"]</h1>
 
+<partial name="_StatusMessage" />
+
+<hr />
+
 <p>
-    <a asp-page="Create" class="btn btn-outline-primary">Opret</a>
+    <a class="btn btn-outline-secondary me-2" asp-area="" asp-page="/Management/Index">
+        <i class="bi bi-x-circle me-2"></i> Tilbage
+    </a>
+    @if (User.IsInRole("Admin"))
+    {
+        <a class="btn btn-outline-primary" asp-page="Create">
+            <i class="bi bi-plus-circle me-2"></i> Ny Evaluering
+        </a>
+    }
 </p>
 
-<table class="table">
-    <thead>
-        <tr>
-            <th>
-                Borger
-            </th>
-            <th>
-                @Html.DisplayNameFor(model => model.SelfEvaluation[0].IsSick)
-            </th>
-            <th>
-                @Html.DisplayNameFor(model => model.SelfEvaluation[0].ArrivalTime)
-            </th>
-            <th>
-                @Html.DisplayNameFor(model => model.SelfEvaluation[0].DepartureTime)
-            </th>
-            <th>
-                @Html.DisplayNameFor(model => model.SelfEvaluation[0].TotalHours)
-            </th>
-            <th>
-                @Html.DisplayNameFor(model => model.SelfEvaluation[0].HadBreak)
-            </th>
-            <th>
-                @Html.DisplayNameFor(model => model.SelfEvaluation[0].BreakDuration)
-            </th>
-            <th>
-                @Html.DisplayNameFor(model => model.SelfEvaluation[0].NextMeetingNotes)
-            </th>
-            <th>
-                @Html.DisplayNameFor(model => model.SelfEvaluation[0].CommentFromLeader)
-            </th>
-            <th>
-                @Html.DisplayNameFor(model => model.SelfEvaluation[0].EvaluationDate)
-            </th>
-            <th>
-                @Html.DisplayNameFor(model => model.SelfEvaluation[0].LastUpdated)
-            </th>
-            <th></th>
-        </tr>
-    </thead>
-    <tbody>
-        @foreach (var item in Model.SelfEvaluation)
-        {
-            <tr>
-                <td>
-                    @Html.DisplayFor(modelItem => item.User.FullName)
-                </td>
-                <td>
-                    @Html.DisplayFor(modelItem => item.IsSick)
-                </td>
-                <td>
-                    @Html.DisplayFor(modelItem => item.ArrivalTime)
-                </td>
-                <td>
-                    @Html.DisplayFor(modelItem => item.DepartureTime)
-                </td>
-                <td>
-                    @Html.DisplayFor(modelItem => item.TotalHours)
-                </td>
-                <td>
-                    @Html.DisplayFor(modelItem => item.HadBreak)
-                </td>
-                <td>
-                    @Html.DisplayFor(modelItem => item.BreakDuration)
-                </td>
-                <td>
-                    @Html.DisplayFor(modelItem => item.NextMeetingNotes)
-                </td>
-                <td>
-                    @Html.DisplayFor(modelItem => item.CommentFromLeader)
-                </td>
-                <td>
-                    @Html.DisplayFor(modelItem => item.EvaluationDate)
-                </td>
-                <td>
-                    @Html.DisplayFor(modelItem => item.LastUpdated)
-                </td>
-                <td>
-                    <a asp-page="./Edit" asp-route-id="@item.Id">Rediger</a> |
-                    <a asp-page="./Details" asp-route-id="@item.Id">Vis</a> |
+<!-- SEKTION 1: Manglende evalueringer (kun Admin/Leder) -->
+@if (User.IsInRole("Admin") || User.IsInRole("Leder"))
+{
+    <h3 class="mt-4">Manglende evalueringer</h3>
+    <p class="text-muted">Liste over dage, hvor borgeren ifølge deres arbejdsdage mangler et skema.</p>
 
-                    @if (User.Identity?.IsAuthenticated == true && (User.IsInRole("Admin") || User.IsInRole("SysAdmin")))
-                    {
-                        <a asp-page="./Delete" asp-route-id="@item.Id">Slet</a>
-                    }
-                </td>
-            </tr>
-        }
-    </tbody>
-</table>
+    @if (Model.MissingEvaluations.Any())
+    {
+        <table class="table table-striped">
+            <thead>
+                <tr>
+                    <th>Borger</th>
+                    <th>Dato</th>
+                    <th></th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var m in Model.MissingEvaluations)
+                {
+                    <tr>
+                        <td>@m.FullName</td>
+                        <td>@m.Date.ToString("dd.MM.yyyy")</td>
+                        <td>
+                            <a class="btn btn-sm btn-outline-primary"
+                               asp-page="Create"
+                               asp-route-userId="@m.UserId"
+                               asp-route-evaluationDate="@m.Date.ToString("yyyy-MM-dd")">
+                                <i class="bi bi-pencil-square me-1"></i> Udfyld skema
+                            </a>
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    }
+    else
+    {
+        <div class="alert alert-info">Der er ingen manglende evalueringer for valgt periode.</div>
+    }
+}
+
+<!-- SEKTION 2: Udfyldte skemaer der mangler lederkommentar (Admin + Leder) -->
+@if (User.IsInRole("Admin") || User.IsInRole("Leder"))
+{
+    <h3 class="mt-4">Skemaer uden lederkommentar</h3>
+    <p class="text-muted">Skemaer som er udfyldt af borger, men mangler kommentar fra leder.</p>
+
+    @if (Model.PendingLeaderComments.Any())
+    {
+        <table class="table table-striped">
+            <thead>
+                <tr>
+                    <th>Borger</th>
+                    <th>Evalueringsdato</th>
+                    <th>Kommentar fra borger</th>
+                    <th></th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var se in Model.PendingLeaderComments)
+                {
+                    <tr>
+                        <td>@se.User.FullName</td>
+                        <td>@se.EvaluationDate.ToString("dd.MM.yyyy")</td>
+                        <td>@(string.IsNullOrEmpty(se.CommentFromUser) ? "-" : se.CommentFromUser)</td>
+                        <td>
+                            <a class="btn btn-sm btn-outline-primary" asp-page="./Details" asp-route-id="@se.Id">
+                                <i class="bi bi-eye me-1"></i> Vis
+                            </a>
+
+                            @if (User.IsInRole("Admin"))
+                            {
+                                <a class="btn btn-sm btn-outline-warning" asp-page="./Edit" asp-route-id="@se.Id">
+                                    <i class="bi bi-pencil-square me-1"></i> Rediger
+                                </a>
+                                <a class="btn btn-sm btn-outline-danger" asp-page="./Delete" asp-route-id="@se.Id">
+                                    <i class="bi bi-trash me-1"></i> Slet
+                                </a>
+                            }
+
+                            @if (User.IsInRole("Leder"))
+                            {
+                                <a class="btn btn-sm btn-outline-primary" asp-page="./Comment" asp-route-id="@se.Id">
+                                    <i class="bi bi-chat-dots me-1"></i> Udfyld kommentar og godkend
+                                </a>
+                            }
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    }
+    else
+    {
+        <div class="alert alert-info">Ingen skemaer mangler lederkommentar lige nu.</div>
+    }
+}
+
+<!-- SEKTION 3: Godkendte / fuldt udfyldte skemaer (Admin + Leder) med filter + paging -->
+@if (User.IsInRole("Admin") || User.IsInRole("Leder"))
+{
+    <h3 class="mt-4">Godkendte evalueringer</h3>
+
+    <form method="get" class="row g-2 align-items-center mb-3">
+        <div class="col-auto">
+            <label class="visually-hidden">Borger</label>
+
+            <!-- Brug asp-for + asp-items i stedet for manuel <option> med inline C# -->
+            <select asp-for="UserFilter" asp-items="Model.BorgerSelectList" class="form-select">
+                <option value="">Vis alle</option>
+            </select>
+        </div>
+
+        <div class="col-auto">
+            <select name="pageSize" class="form-select">
+                <option value="25" selected="@(Model.PageSize == 25 ? "selected" : null)">25</option>
+                <option value="50" selected="@(Model.PageSize == 50 ? "selected" : null)">50</option>
+            </select>
+        </div>
+
+        <div class="col-auto">
+            <button type="submit" class="btn btn-outline-primary">
+                <i class="bi bi-funnel me-1"></i> Filtrer
+            </button>
+        </div>
+    </form>
+
+    @if (Model.ApprovedEvaluations.Any())
+    {
+        <table class="table table-striped">
+            <thead>
+                <tr>
+                    <th>Borger</th>
+                    <th>Evalueringsdato</th>
+                    <th>Senest opdateret</th>
+                    <th>Kommentar fra leder</th>
+                    <th></th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var se in Model.ApprovedEvaluations)
+                {
+                    <tr>
+                        <td>@se.User.FullName</td>
+                        <td>@se.EvaluationDate.ToString("dd.MM.yyyy")</td>
+                        <td>@se.LastUpdated.ToString("dd.MM.yyyy HH:mm")</td>
+                        <td>@(string.IsNullOrEmpty(se.CommentFromLeader) ? "-" : se.CommentFromLeader)</td>
+                        <td>
+                            <a class="btn btn-sm btn-outline-primary" asp-page="./Details" asp-route-id="@se.Id">
+                                <i class="bi bi-eye me-1"></i> Vis
+                            </a>
+                            @if (User.IsInRole("Admin"))
+                            {
+                                <a class="btn btn-sm btn-outline-warning" asp-page="./Edit" asp-route-id="@se.Id">
+                                    <i class="bi bi-pencil-square me-1"></i> Rediger
+                                </a>
+                                <a class="btn btn-sm btn-outline-danger" asp-page="./Delete" asp-route-id="@se.Id">
+                                    <i class="bi bi-trash me-1"></i> Slet
+                                </a>
+                            }
+                            <!-- NY knap: Download PDF -->
+                            <a class="btn btn-sm btn-outline-success" asp-page-handler="Download" asp-route-id="@se.Id">
+                                <i class="bi bi-download me-1"></i> Download
+                            </a>
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+
+        <!-- Paging -->
+        <nav>
+            <ul class="pagination">
+                @for (int p = 1; p <= Model.TotalPages; p++)
+                {
+                    <li class="page-item @(p == Model.CurrentPage ? "active" : "")">
+                        <a class="page-link"
+                           href="?page=@p&pageSize=@Model.PageSize&userFilter=@Model.UserFilter">
+                            @p
+                        </a>
+                    </li>
+                }
+            </ul>
+        </nav>
+    }
+    else
+    {
+        <div class="alert alert-info">Ingen godkendte evalueringer fundet.</div>
+    }
+}

@@ -1,34 +1,43 @@
-﻿@page
+﻿@page "{id}"
 @model MinaGroup.Backend.Pages.Management.TaskOptions.EditModel
 
 @{
     ViewData["Title"] = "Rediger Arbejdsopgave/Værksted";
+    Layout = "/Pages/Shared/_Layout.cshtml";
 }
 
-<h1 class="text-center display-4 fw-bold text-primary">@ViewData["Title"]</h1>
+<h1 class="text-center display-4 fw-bold text-primary mb-4">@ViewData["Title"]</h1>
 
 <hr />
 
-<div class="row">
-    <div class="col-md-4">
-        <form method="post">
-            <div asp-validation-summary="ModelOnly" class="text-danger"></div>
-            <input type="hidden" asp-for="TaskOption.TaskOptionId" />
-            <div class="form-group">
-                <span class="text-danger">*</span>
-                <label asp-for="TaskOption.TaskName" class="control-label"></label>
-                <input asp-for="TaskOption.TaskName" class="form-control" />
-                <span asp-validation-for="TaskOption.TaskName" class="text-danger"></span>
-            </div>
-            <hr />
-            <div class="form-group">
-                <a class="btn btn-danger" asp-page="./Index">Fortryd</a>
-                <input type="submit" value="Gem" class="btn btn-primary" />
-            </div>
-        </form>
+<div class="row justify-content-center">
+    <div class="col-md-8">
+        <div class="p-4 border rounded shadow-sm bg-light">
+            <form method="post">
+                <div asp-validation-summary="ModelOnly" class="text-danger mb-3"></div>
+                <input type="hidden" asp-for="TaskOption.TaskOptionId" />
+
+                <div class="mb-3">
+                    <label asp-for="TaskOption.TaskName" class="form-label fw-bold">
+                        <span class="text-danger">*</span> @Html.DisplayNameFor(m => m.TaskOption.TaskName)
+                    </label>
+                    <input asp-for="TaskOption.TaskName" class="form-control" />
+                    <span asp-validation-for="TaskOption.TaskName" class="text-danger"></span>
+                </div>
+
+                <div class="d-flex justify-content-between mt-4">
+                    <a asp-page="./Index" class="btn btn-outline-secondary">
+                        <i class="bi bi-x-circle"></i> Annuller
+                    </a>
+                    <button type="submit" class="btn btn-outline-primary fw-bold">
+                        <i class="bi bi-save"></i> Gem ændringer
+                    </button>
+                </div>
+            </form>
+        </div>
     </div>
 </div>
 
 @section Scripts {
-    @{await Html.RenderPartialAsync("_ValidationScriptsPartial");}
+    <partial name="_ValidationScriptsPartial" />
 }

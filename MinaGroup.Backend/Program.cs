@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.DataProtection;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Identity.UI.Services;
 using Microsoft.EntityFrameworkCore;
@@ -13,6 +14,15 @@ using MinaGroup.Backend.Services.Interfaces;
 using System.Text;
 
 var builder = WebApplication.CreateBuilder(args);
+
+builder.Services.AddDataProtection()
+    .SetApplicationName("MinaGroup.Backend")
+    // Produktionsråd: persister nøgler sikkert, fx Azure Blob/KeyVault. 
+    // For dev kan du bruge filsystem:
+    .PersistKeysToFileSystem(new DirectoryInfo(Path.Combine(Directory.GetCurrentDirectory(), "DataProtection-Keys")));
+
+// Register vores krypteringsservice
+builder.Services.AddSingleton<ICryptoService, DataProtectionCryptoService>();
 
 // Connection string
 var connStr = builder.Configuration.GetConnectionString("DefaultConnection");
@@ -105,6 +115,22 @@ builder.Services.AddCors(options =>
     });
 });
 
+// Tilføj cookie policy service
+builder.Services.Configure<CookiePolicyOptions>(options =>
+{
+    // Brugeren skal give samtykke til ikke-nødvendige cookies
+    options.CheckConsentNeeded = context => true;
+
+    // SameSite policy (kan være Strict, Lax eller None afhængigt af krav)
+    options.MinimumSameSitePolicy = SameSiteMode.Lax;
+
+    // Sørger for at cookies markeres som HttpOnly og Secure hvor muligt
+    options.Secure = CookieSecurePolicy.Always;
+});
+
+// PDF Service.
+builder.Services.AddScoped<SelfEvaluationPdfService>();
+
 var app = builder.Build();
 
 // Migration + seeding
@@ -137,6 +163,9 @@ app.UseStaticFiles();
 app.UseRouting();
 
 app.UseCors("AllowAll");
+
+// Cookie policy middleware SKAL være før Authentication/Authorization
+app.UseCookiePolicy();
 
 app.UseAuthentication(); // vigtigt: før Authorization
 app.UseAuthorization();
