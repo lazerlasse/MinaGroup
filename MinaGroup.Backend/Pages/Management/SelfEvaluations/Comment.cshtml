@@ -6,24 +6,33 @@
 }
 
 <h1 class="text-center display-4 fw-bold text-primary mb-4">@ViewData["Title"]</h1>
+
 <hr />
 
 <div class="row justify-content-center">
     <div class="col-md-8">
         <form method="post">
             <div class="p-4 border rounded shadow-sm bg-light">
+
+                <!-- Evalueringsdato -->
+                <div class="mb-3">
+                    <label asp-for="SelfEvaluation.EvaluationDate" class="form-label fw-bold"></label>
+                    <input value="@Model.SelfEvaluation.EvaluationDate.ToShortDateString()" disabled class="form-control" />
+                </div>
+
                 <!-- Borger -->
                 <div class="mb-3">
-                    <label class="form-label fw-bold">Borger</label>
+                    <label asp-for="SelfEvaluation.User" class="form-label fw-bold"></label>
                     <input value="@Model.SelfEvaluation.User.FullName" disabled class="form-control" />
                 </div>
 
                 <!-- Sygemeldt -->
                 <div class="mb-3">
-                    <label class="form-label fw-bold">Sygemeldt</label>
+                    <label asp-for="SelfEvaluation.IsSick" class="form-label fw-bold"></label>
                     <div class="form-check">
                         <input class="form-check-input" type="checkbox" disabled
                                id="SelfEvaluation_IsSick"
+                               data-checked="@Model.SelfEvaluation.IsSick"
                                @(Model.SelfEvaluation.IsSick ? "checked" : "") />
                         <label class="form-check-label">Sygemeldt</label>
                     </div>
@@ -37,10 +46,11 @@
 
                 <!-- Udeblevet -->
                 <div class="mb-3">
-                    <label class="form-label fw-bold">Udeblevet</label>
+                    <label asp-for="SelfEvaluation.IsNoShow" class="form-label fw-bold"></label>
                     <div class="form-check">
                         <input class="form-check-input" type="checkbox" disabled
                                id="SelfEvaluation_IsNoShow"
+                               data-checked="@Model.SelfEvaluation.IsNoShow"
                                @(Model.SelfEvaluation.IsNoShow ? "checked" : "") />
                         <label class="form-check-label">Udeblevet</label>
                     </div>
@@ -52,72 +62,120 @@
                     <span asp-validation-for="SelfEvaluation.NoShowReason" class="text-danger"></span>
                 </div>
 
+
+                <!-- Ferie og lovligt fravær -->
+                <div class="mb-3">
+                    <label asp-for="SelfEvaluation.IsOffWork" class="form-label fw-bold"></label>
+                    <div class="form-check">
+                        <input class="form-check-input" type="checkbox" disabled
+                               id="SelfEvaluation_IsOffWork"
+                               data-checked="@Model.SelfEvaluation.IsOffWork"
+                               @(Model.SelfEvaluation.IsOffWork ? "checked" : "") />
+                        <label class="form-check-label">Ferie/lovligt fravær</label>
+                    </div>
+                </div>
+
+                <div class="mb-3" id="offWorkReasonSection">
+                    <label asp-for="SelfEvaluation.OffWorkReason" class="form-label fw-bold"></label>
+                    <textarea asp-for="SelfEvaluation.OffWorkReason" class="form-control" rows="3" id="SelfEvaluation_OffWorkReason"></textarea>
+                    <span asp-validation-for="SelfEvaluation.OffWorkReason" class="text-danger"></span>
+                </div>
+
+
                 <!-- Tidspunkter -->
                 <div class="mb-3">
-                    <label class="form-label fw-bold">Ankomsttid</label>
+                    <label asp-for="SelfEvaluation.ArrivalTime" class="form-label fw-bold"></label>
                     <input value="@Model.SelfEvaluation.ArrivalTime?.ToString(@"hh\:mm")" disabled class="form-control" />
                 </div>
                 <div class="mb-3">
-                    <label class="form-label fw-bold">Afgangstid</label>
+                    <label asp-for="SelfEvaluation.DepartureTime" class="form-label fw-bold"></label>
                     <input value="@Model.SelfEvaluation.DepartureTime?.ToString(@"hh\:mm")" disabled class="form-control" />
                 </div>
                 <div class="mb-3">
-                    <label class="form-label fw-bold">Total timer</label>
+                    <label asp-for="SelfEvaluation.TotalHours" class="form-label fw-bold"></label>
                     <input value="@Model.SelfEvaluation.TotalHours?.ToString(@"hh\:mm")" disabled class="form-control" />
                 </div>
 
                 <!-- Pause -->
                 <div class="mb-3">
-                    <label class="form-label fw-bold">Pause</label>
+                    <label asp-for="SelfEvaluation.HadBreak" class="form-label fw-bold"></label>
                     <div class="form-check">
                         <input class="form-check-input" type="checkbox" disabled
                                @(Model.SelfEvaluation.HadBreak ? "checked" : "") />
                         <label class="form-check-label">Pause</label>
                     </div>
                 </div>
+
                 <div class="mb-3">
-                    <label class="form-label fw-bold">Pause varighed</label>
+                    <label asp-for="SelfEvaluation.BreakDuration" class="form-label fw-bold"></label>
                     <input value="@Model.SelfEvaluation.BreakDuration?.ToString(@"hh\:mm")" disabled class="form-control" />
                 </div>
 
                 <!-- Andre felter -->
                 <div class="mb-3">
-                    <label class="form-label fw-bold">Ankomststatus</label>
+                    <label asp-for="SelfEvaluation.ArrivalStatus" class="form-label fw-bold"></label>
                     <input value="@Model.SelfEvaluation.ArrivalStatus" disabled class="form-control" />
                 </div>
+
                 <div class="mb-3">
-                    <label class="form-label fw-bold">Samarbejde</label>
+                    <label asp-for="SelfEvaluation.Collaboration" class="form-label fw-bold"></label>
                     <input value="@Model.SelfEvaluation.Collaboration" disabled class="form-control" />
                 </div>
+
                 <div class="mb-3">
-                    <label class="form-label fw-bold">Assistance</label>
+                    <label asp-for="SelfEvaluation.Assistance" class="form-label fw-bold"></label>
                     <input value="@Model.SelfEvaluation.Assistance" disabled class="form-control" />
                 </div>
+
                 <div class="mb-3">
-                    <label class="form-label fw-bold">Hjælp</label>
+                    <label asp-for="SelfEvaluation.Aid" class="form-label fw-bold"></label>
                     <input value="@Model.SelfEvaluation.Aid" disabled class="form-control" />
                 </div>
+
                 <div class="mb-3">
-                    <label class="form-label fw-bold">Hjælp beskrivelse</label>
+                    <label asp-for="SelfEvaluation.AidDescription" class="form-label fw-bold"></label>
                     <input value="@Model.SelfEvaluation.AidDescription" disabled class="form-control" />
                 </div>
 
                 <div class="mb-3">
-                    <label class="form-label fw-bold">Ubehag oplevet</label>
+                    <label asp-for="SelfEvaluation.HadDiscomfort" class="form-label fw-bold"></label>
                     <div class="form-check">
                         <input class="form-check-input" type="checkbox" disabled
                                @(Model.SelfEvaluation.HadDiscomfort ? "checked" : "") />
                         <label class="form-check-label">Ubehag oplevet</label>
                     </div>
                 </div>
+
                 <div class="mb-3">
-                    <label class="form-label fw-bold">Ubehag beskrivelse</label>
+                    <label asp-for="SelfEvaluation.DiscomfortDescription" class="form-label fw-bold"></label>
                     <input value="@Model.SelfEvaluation.DiscomfortDescription" disabled class="form-control" />
                 </div>
 
+                @if (Model.TaskOptions?.Any() == true)
+                {
+                    <div class="mb-3">
+                        <label asp-for="SelfEvaluation.SelectedTask" class="form-label fw-bold"></label>
+                        <div class="d-flex flex-wrap gap-2">
+                            @foreach (var t in Model.TaskOptions)
+                            {
+                                var isChecked = Model.SelectedTaskIds.Contains(t.TaskOptionId);
+                                <div class="form-check">
+                                    <input class="form-check-input"
+                                           type="checkbox"
+                                           name="SelectedTaskIds"
+                                           value="@t.TaskOptionId"
+                                           @(isChecked ? "checked" : null)
+                                           disabled />
+                                    <label class="form-check-label">@t.TaskName</label>
+                                </div>
+                            }
+                        </div>
+                    </div>
+                }
+
                 <!-- Kommentar fra medarbejder -->
                 <div class="mb-3">
-                    <label class="form-label fw-bold">Kommentar fra medarbejder</label>
+                    <label asp-for="SelfEvaluation.CommentFromUser" class="form-label fw-bold"></label>
                     <textarea class="form-control" rows="3" disabled>@Model.SelfEvaluation.CommentFromUser</textarea>
                 </div>
 
@@ -128,13 +186,9 @@
                     <span asp-validation-for="SelfEvaluation.CommentFromLeader" class="text-danger"></span>
                 </div>
 
-                <!-- Evalueringsdato -->
+                <!-- Dato stempler -->
                 <div class="mb-3">
-                    <label class="form-label fw-bold">Evalueringsdato</label>
-                    <input value="@Model.SelfEvaluation.EvaluationDate.ToString("dd.MM.yyyy HH:mm")" disabled class="form-control" />
-                </div>
-                <div class="mb-3">
-                    <label class="form-label fw-bold">Sidst opdateret</label>
+                    <label asp-for="SelfEvaluation.LastUpdated" class="form-label fw-bold"></label>
                     <input value="@Model.SelfEvaluation.LastUpdated.ToString("dd.MM.yyyy HH:mm")" disabled class="form-control" />
                 </div>
 

@@ -10,27 +10,41 @@
     <strong>Advarsel!</strong> Denne handling vil <u>permanent slette</u> selvevalueringen og kan ikke fortrydes.
 </div>
 
+<hr />
+
 <div class="card shadow-sm rounded-3 mb-4">
     <div class="card-body">
+
+        <!-- Evalueringsdato -->
         <div class="mb-3">
-            <label asp-for="SelfEvaluation.UserId" class="form-label fw-bold">Borger</label>
+            <label asp-for="SelfEvaluation.EvaluationDate" class="form-label fw-bold">Evalueringsdato</label>
+            <input value="@Model.SelfEvaluation.EvaluationDate.ToShortDateString()" class="form-control" readonly />
+        </div>
+
+        <!-- Borger -->
+        <div class="mb-3">
+            <label asp-for="SelfEvaluation.User" class="form-label fw-bold"></label>
             <input asp-for="SelfEvaluation.User.FullName" class="form-control" readonly />
         </div>
 
+        <!-- Kommentar fra leder -->
         <div class="mb-3">
-            <label asp-for="SelfEvaluation.CommentFromLeader" class="form-label fw-bold">Noter</label>
+            <label asp-for="SelfEvaluation.CommentFromLeader" class="form-label fw-bold"></label>
             <input asp-for="SelfEvaluation.CommentFromLeader" class="form-control" readonly />
         </div>
 
+        <!-- Sidst Opdateret -->
         <div class="mb-3">
-            <label asp-for="SelfEvaluation.LastUpdated" class="form-label fw-bold">Senest Opdateret</label>
-            <input asp-for="SelfEvaluation.LastUpdated" class="form-control" readonly />
+            <label asp-for="SelfEvaluation.LastUpdated" class="form-label fw-bold"></label>
+            <input value="@Model.SelfEvaluation.LastUpdated.ToString(" dd.MM.yyyy HH:mm")" class="form-control" readonly />
         </div>
 
+        <!-- Godkendt af -->
         <div class="mb-3">
-            <label asp-for="SelfEvaluation.EvaluationDate" class="form-label fw-bold">Evalueringsdato</label>
-            <textarea asp-for="SelfEvaluation.EvaluationDate" class="form-control" readonly></textarea>
+            <label asp-for="SelfEvaluation.ApprovedByUser" class="form-label fw-bold"></label>
+            <input asp-for="SelfEvaluation.ApprovedByUser.FullName" class="form-control" readonly />
         </div>
+
     </div>
 </div>
 

@@ -4,6 +4,7 @@ using MinaGroup.Backend.Models;
 using System;
 using System.Threading.Tasks;
 
+
 namespace MinaGroup.Backend.Infrastructure.Identity
 {
     public static class DataSeeder

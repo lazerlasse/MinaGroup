@@ -1,16 +1,19 @@
 ﻿document.addEventListener("DOMContentLoaded", function () {
     const approveBtn = document.getElementById("approveBtn");
     const confirmApproveBtn = document.getElementById("confirmApproveBtn");
+
     const commentField = document.getElementById("SelfEvaluation_CommentFromLeader");
     const sickReasonField = document.getElementById("SelfEvaluation_SickReason");
     const noShowReasonField = document.getElementById("SelfEvaluation_NoShowReason");
+    const offWorkReasonField = document.getElementById("SelfEvaluation_OffWorkReason");
 
     const isSickEl = document.getElementById("SelfEvaluation_IsSick");
     const isNoShowEl = document.getElementById("SelfEvaluation_IsNoShow");
+    const isOffWorkEl = document.getElementById("SelfEvaluation_IsOffWork");
 
     const sickSection = document.getElementById("sickReasonSection");
     const noShowSection = document.getElementById("noShowReasonSection");
-    const leaderSection = document.getElementById("commentFromLeaderSection");
+    const offWorkSection = document.getElementById("offWorkReasonSection");
 
     const form = approveBtn?.closest("form");
     const approveModalEl = document.getElementById("approveModal");
@@ -21,38 +24,49 @@
     function updateVisibility() {
         const sick = isSickEl?.checked;
         const noShow = isNoShowEl?.checked;
+        const offWork = isOffWorkEl?.checked;
 
+        // Skjul alle årsagsfelter som standard
+        sickSection.style.display = "none";
+        noShowSection.style.display = "none";
+        offWorkSection.style.display = "none";
+
+        // Deaktiver alle felter som standard
+        sickReasonField.disabled = true;
+        noShowReasonField.disabled = true;
+        offWorkReasonField.disabled = true;
+
+        // Aktivér kun relevant årsagsfelt
         if (sick) {
             sickSection.style.display = "block";
-            noShowSection.style.display = "none";
-            leaderSection.style.display = "none";
+            sickReasonField.disabled = false;
             commentField.disabled = true;
-            noShowReasonField.value = "";
-            commentField.value = "";
         } else if (noShow) {
-            sickSection.style.display = "none";
             noShowSection.style.display = "block";
-            leaderSection.style.display = "none";
+            noShowReasonField.disabled = false;
             commentField.disabled = true;
-            sickReasonField.value = "";
-            commentField.value = "";
+        } else if (offWork) {
+            offWorkSection.style.display = "block";
+            offWorkReasonField.disabled = false;
+            commentField.disabled = true;
         } else {
-            sickSection.style.display = "none";
-            noShowSection.style.display = "none";
-            leaderSection.style.display = "block";
+            // Ingen af de tre markeret: kun commentFromLeader er aktiv
             commentField.disabled = false;
-            sickReasonField.value = "";
-            noShowReasonField.value = "";
         }
     }
 
     function validateBeforeSubmit() {
         const sick = isSickEl?.checked;
         const noShow = isNoShowEl?.checked;
+        const offWork = isOffWorkEl?.checked;
 
+        // Valider kun aktivt felt
         if (sick && !sickReasonField.value.trim()) return false;
         if (noShow && !noShowReasonField.value.trim()) return false;
-        if (!sick && !noShow && !commentField.value.trim()) return false;
+        if (offWork && !offWorkReasonField.value.trim()) return false;
+
+        // Valider kun CommentFromLeader hvis ingen af de tre er markeret
+        if (!sick && !noShow && !offWork && !commentField.value.trim()) return false;
 
         return true;
     }
@@ -69,5 +83,9 @@
         form.submit();
     });
 
+    // Init
     updateVisibility();
+
+    // Opdater når nogen af checkboksene ændres
+    [isSickEl, isNoShowEl, isOffWorkEl].forEach(el => el?.addEventListener("change", updateVisibility));
 });

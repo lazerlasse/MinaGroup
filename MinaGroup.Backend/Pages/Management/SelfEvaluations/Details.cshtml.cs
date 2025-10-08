@@ -24,6 +24,11 @@ namespace MinaGroup.Backend.Pages.Management.SelfEvaluations
 
         public SelfEvaluation SelfEvaluation { get; set; } = default!;
 
+        public List<TaskOption> TaskOptions { get; set; } = [];
+
+        [BindProperty]
+        public List<int> SelectedTaskIds { get; set; } = [];
+
         public async Task<IActionResult> OnGetAsync(int? id)
         {
             if (id == null)
@@ -37,6 +42,7 @@ namespace MinaGroup.Backend.Pages.Management.SelfEvaluations
                 var selfevaluation = await _context.SelfEvaluations
                     .Include(u => u.User)
                     .Include(u => u.ApprovedByUser)
+                    .Include(u => u.SelectedTask)
                     .FirstOrDefaultAsync(m => m.Id == id);
 
                 if (selfevaluation == null)
@@ -45,7 +51,13 @@ namespace MinaGroup.Backend.Pages.Management.SelfEvaluations
                     return RedirectToPage("./Index");
                 }
 
+                TaskOptions = _context.TaskOptions.AsNoTracking().OrderBy(t => t.TaskName).ToList();
+
+                // Sæt valgte IDs
+                SelectedTaskIds = selfevaluation.SelectedTask.Select(t => t.TaskOptionId).ToList();
+
                 SelfEvaluation = selfevaluation;
+
                 return Page();
             }
             catch (Exception ex)

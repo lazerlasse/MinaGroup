@@ -3,9 +3,12 @@ document.addEventListener("DOMContentLoaded", function () {
     // element references
     const isSickEl = document.getElementById("SelfEvaluation_IsSick");
     const isNoShowEl = document.getElementById("SelfEvaluation_IsNoShow");
+    const isOffWorkEl = document.getElementById("SelfEvaluation_IsOffWork");
+
     const showFormSection = document.getElementById("showFormSection");
     const sickReasonSection = document.getElementById("sickReasonSection");
     const noShowReasonSection = document.getElementById("noShowReasonSection");
+    const offWorkReasonSection = document.getElementById("offWorkReasonSection");
 
     const hadBreakEl = document.getElementById("SelfEvaluation_HadBreak");
     const breakDurationSection = document.getElementById("breakDurationSection");
@@ -77,36 +80,42 @@ document.addEventListener("DOMContentLoaded", function () {
         });
     }
 
+    // toggle sick/noshow/offwork and form
     function toggleFormSection() {
         const sick = isSickEl && isSickEl.checked;
         const noShow = isNoShowEl && isNoShowEl.checked;
+        const offWork = isOffWorkEl && isOffWorkEl.checked;
 
         // Gensidig udelukkelse
-        if (sick && noShow) {
-            if (this === isSickEl) {
-                isNoShowEl.checked = false;
-            } else if (this === isNoShowEl) {
-                isSickEl.checked = false;
-            }
+        if (this === isSickEl && sick) {
+            if (isNoShowEl) isNoShowEl.checked = false;
+            if (isOffWorkEl) isOffWorkEl.checked = false;
+        } else if (this === isNoShowEl && noShow) {
+            if (isSickEl) isSickEl.checked = false;
+            if (isOffWorkEl) isOffWorkEl.checked = false;
+        } else if (this === isOffWorkEl && offWork) {
+            if (isSickEl) isSickEl.checked = false;
+            if (isNoShowEl) isNoShowEl.checked = false;
         }
 
         const activeSick = isSickEl && isSickEl.checked;
         const activeNoShow = isNoShowEl && isNoShowEl.checked;
+        const activeOffWork = isOffWorkEl && isOffWorkEl.checked;
 
-        const shouldHideForm = activeSick || activeNoShow;
+        const shouldHideForm = activeSick || activeNoShow || activeOffWork;
         setSectionVisibility(showFormSection, !shouldHideForm);
 
         // SickReason kun synlig hvis IsSick
         setSectionVisibility(sickReasonSection, activeSick);
-        if (!activeSick) {
-            clearSectionInputs(sickReasonSection);
-        }
+        if (!activeSick) clearSectionInputs(sickReasonSection);
 
         // NoShowReason kun synlig hvis IsNoShow
         setSectionVisibility(noShowReasonSection, activeNoShow);
-        if (!activeNoShow) {
-            clearSectionInputs(noShowReasonSection);
-        }
+        if (!activeNoShow) clearSectionInputs(noShowReasonSection);
+
+        // OffWorkReason kun synlig hvis IsOffWork
+        setSectionVisibility(offWorkReasonSection, activeOffWork);
+        if (!activeOffWork) clearSectionInputs(offWorkReasonSection);
 
         if (shouldHideForm) {
             clearSectionInputs(showFormSection);
@@ -172,6 +181,8 @@ document.addEventListener("DOMContentLoaded", function () {
     // Safe wiring
     if (isSickEl) isSickEl.addEventListener("change", toggleFormSection);
     if (isNoShowEl) isNoShowEl.addEventListener("change", toggleFormSection);
+    if (isOffWorkEl) isOffWorkEl.addEventListener("change", toggleFormSection);
+
     if (hadBreakEl) hadBreakEl.addEventListener("change", toggleBreak);
     if (hadDiscomfortEl) hadDiscomfortEl.addEventListener("change", toggleDiscomfort);
     if (aidEl) aidEl.addEventListener("change", toggleAid);

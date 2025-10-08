@@ -125,7 +125,15 @@ namespace MinaGroup.Backend.Pages.Management.SelfEvaluations
                 // 3) Pending leader comments
                 PendingLeaderComments = await _context.SelfEvaluations
                     .Include(se => se.User)
-                    .Where(se => string.IsNullOrEmpty(se.CommentFromLeader) && se.IsApproved == false)
+                    .Where(se =>
+                        se.IsApproved == false &&
+                        (
+                            string.IsNullOrEmpty(se.CommentFromLeader)
+                            || (se.IsSick && string.IsNullOrEmpty(se.SickReason))
+                            || (se.IsNoShow && string.IsNullOrEmpty(se.NoShowReason))
+                            || (se.IsOffWork && string.IsNullOrEmpty(se.OffWorkReason))
+                        )
+                     )
                     .OrderByDescending(se => se.EvaluationDate)
                     .AsNoTracking()
                     .ToListAsync();
@@ -133,6 +141,7 @@ namespace MinaGroup.Backend.Pages.Management.SelfEvaluations
                 // 4) Approved evaluations (with optional filter and paging)
                 var approvedQuery = _context.SelfEvaluations
                     .Include(se => se.User)
+                    .Include(se => se.ApprovedByUser)
                     .Where(se => se.IsApproved);
 
                 if (!string.IsNullOrEmpty(UserFilter))

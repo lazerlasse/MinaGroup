@@ -6,6 +6,7 @@ using Microsoft.AspNetCore.Mvc.Rendering;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using MinaGroup.Backend.Data;
+using MinaGroup.Backend.Helpers;
 using MinaGroup.Backend.Models;
 using System;
 using System.Collections.Generic;
@@ -48,7 +49,7 @@ namespace MinaGroup.Backend.Pages.Management.SelfEvaluations
         public string? UserFullName { get; set; } = string.Empty;
         public List<TaskOption>? TaskOptions { get; set; } = [];
 
-        public IActionResult OnGet(string? userId, string? evaluationDate)
+        public async Task<IActionResult> OnGet(string? userId, string? evaluationDate)
         {
             try
             {
@@ -81,8 +82,9 @@ namespace MinaGroup.Backend.Pages.Management.SelfEvaluations
 
                 if (string.IsNullOrEmpty(RouteUserId))
                 {
+                    var borgerUsers = await _userManager.GetUsersInRoleAsync("Borger");
                     ViewData["UserId"] = new SelectList(
-                        _context.Users.OrderBy(u => u.FirstName).ThenBy(u => u.LastName).ToList(),
+                        borgerUsers.OrderBy(u => u.FirstName).ThenBy(u => u.LastName).ToList(),
                         "Id",
                         "FullName"
                     );
@@ -92,7 +94,7 @@ namespace MinaGroup.Backend.Pages.Management.SelfEvaluations
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Fejl ved indlæsning af Create SelfEvaluation siden.");
+                _logger.LogError(ex, "Fejl ved indlæsning af CreatePage.");
                 TempData["ErrorMessage"] = "Der opstod en uventet fejl ved indlæsning af siden.";
                 return RedirectToPage("./Index");
             }
@@ -100,26 +102,47 @@ namespace MinaGroup.Backend.Pages.Management.SelfEvaluations
 
         public async Task<IActionResult> OnPostAsync([FromForm] List<int>? SelectedTaskIds)
         {
+            // Remove the user property from the modelstate.
             ModelState.Remove(nameof(SelfEvaluation) + ".User");
 
-            if (!ModelState.IsValid)
+            // Check if evaluation already exist for that user and date.
+            var alreadyExist = await _context.SelfEvaluations.AnyAsync(
+                e => e.UserId == SelfEvaluation.UserId && 
+                e.EvaluationDate.Date == SelfEvaluation.EvaluationDate.Date);
+
+            // Check the model state and evaluation exist.
+            if (!ModelState.IsValid || alreadyExist)
             {
-                TaskOptions = _context.TaskOptions.AsNoTracking().OrderBy(t => t.TaskName).ToList();
-                if (string.IsNullOrEmpty(SelfEvaluation.UserId))
+                // Create error message to show.
+                if (alreadyExist)
                 {
-                    ViewData["UserId"] = new SelectList(
-                        _context.Users.OrderBy(u => u.FirstName).ThenBy(u => u.LastName).ToList(),
-                        "Id",
-                        "FullName"
-                    );
+                    TempData["ErrorMessage"] = "Der findes allerede en evaluering for denne borger på den valgte dato.";
                 }
+                else
+                {
+                    TempData["ErrorMessage"] = "Der opstod en uventet fejl, prøv venligst igen! Fortsætter problemet, så prøv at gå til oversigten og forsøg at oprette skema påny!";
+                }
+
+                // Reload list of TaskOptions before returning the page.
+                TaskOptions = _context.TaskOptions.AsNoTracking().OrderBy(t => t.TaskName).ToList();
+                
+                // Populate list of users again before returning to the page.
+                var borgerUsers = await _userManager.GetUsersInRoleAsync("Borger");
+                ViewData["UserId"] = new SelectList(
+                    borgerUsers.OrderBy(u => u.FirstName).ThenBy(u => u.LastName).ToList(),
+                    "Id",
+                    "FullName"
+                );
+
+                // Return page.
                 return Page();
             }
 
+            // Load current user and check is not null.
             var currentUser = await _userManager.GetUserAsync(User);
             if (currentUser == null)
             {
-                _logger.LogWarning("Forsøg på at oprette SelfEvaluation uden gyldig bruger.");
+                _logger.LogWarning("Forsøg på at oprette evaluering uden gyldig bruger.");
                 TempData["ErrorMessage"] = "Den aktuelle bruger kunne ikke indlæses.";
                 return RedirectToPage("./Index");
             }
@@ -128,17 +151,7 @@ namespace MinaGroup.Backend.Pages.Management.SelfEvaluations
             {
                 // Beregn total tid
                 if (SelfEvaluation.ArrivalTime.HasValue && SelfEvaluation.DepartureTime.HasValue)
-                {
-                    var total = SelfEvaluation.DepartureTime.Value - SelfEvaluation.ArrivalTime.Value;
-
-                    if (SelfEvaluation.HadBreak && SelfEvaluation.BreakDuration.HasValue)
-                        total -= SelfEvaluation.BreakDuration.Value;
-
-                    if (total < TimeSpan.Zero)
-                        total = TimeSpan.Zero;
-
-                    SelfEvaluation.TotalHours = total;
-                }
+                    SelfEvaluation.TotalHours = CalculateTotalWorkHours.CalculateTotalHours(SelfEvaluation.ArrivalTime.Value, SelfEvaluation.DepartureTime.Value, SelfEvaluation.BreakDuration);
 
                 // Godkend automatisk hvis udfyldt korrekt
                 if (SelfEvaluation.IsSick && !string.IsNullOrEmpty(SelfEvaluation.SickReason))
@@ -148,6 +161,12 @@ namespace MinaGroup.Backend.Pages.Management.SelfEvaluations
                 }
 
                 if (SelfEvaluation.IsNoShow && !string.IsNullOrEmpty(SelfEvaluation.NoShowReason))
+                {
+                    SelfEvaluation.IsApproved = true;
+                    SelfEvaluation.ApprovedByUserId = currentUser.Id;
+                }
+
+                if (SelfEvaluation.IsOffWork && !string.IsNullOrEmpty(SelfEvaluation.OffWorkReason))
                 {
                     SelfEvaluation.IsApproved = true;
                     SelfEvaluation.ApprovedByUserId = currentUser.Id;
@@ -170,13 +189,13 @@ namespace MinaGroup.Backend.Pages.Management.SelfEvaluations
             }
             catch (DbUpdateException dbEx)
             {
-                _logger.LogError(dbEx, "Databasefejl ved oprettelse af SelfEvaluation for bruger {UserId}", SelfEvaluation.UserId);
+                _logger.LogError(dbEx, "Databasefejl ved oprettelse af evalueringsskemaet for borger: {UserId}", SelfEvaluation.User.FullName);
                 TempData["ErrorMessage"] = "Der opstod en databasefejl. Prøv igen.";
                 return RedirectToPage("./Index");
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Uventet fejl ved oprettelse af SelfEvaluation for bruger {UserId}", SelfEvaluation.UserId);
+                _logger.LogError(ex, "Uventet fejl ved oprettelse af evalueringsskemaet for borger: {UserId}", SelfEvaluation.User.FullName);
                 TempData["ErrorMessage"] = "Der opstod en uventet fejl. Kontakt support hvis problemet fortsætter.";
                 return RedirectToPage("./Index");
             }

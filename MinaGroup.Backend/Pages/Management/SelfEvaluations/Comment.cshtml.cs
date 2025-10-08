@@ -28,6 +28,11 @@ namespace MinaGroup.Backend.Pages.Management.SelfEvaluations
         [BindProperty]
         public SelfEvaluation SelfEvaluation { get; set; } = new();
 
+        public List<TaskOption>? TaskOptions { get; set; } = [];
+
+        [BindProperty]
+        public List<int> SelectedTaskIds { get; set; } = [];
+
         public async Task<IActionResult> OnGetAsync(int id)
         {
             try
@@ -43,6 +48,7 @@ namespace MinaGroup.Backend.Pages.Management.SelfEvaluations
                 var evaluation = await _context.SelfEvaluations
                     .Include(s => s.User)
                     .Include(s => s.ApprovedByUser)
+                    .Include(u => u.SelectedTask)
                     .FirstOrDefaultAsync(m => m.Id == id);
 
                 if (evaluation == null)
@@ -51,12 +57,18 @@ namespace MinaGroup.Backend.Pages.Management.SelfEvaluations
                     return NotFound();
                 }
 
+                TaskOptions = _context.TaskOptions.AsNoTracking().OrderBy(t => t.TaskName).ToList();
+
+                // Sæt valgte IDs
+                SelectedTaskIds = evaluation.SelectedTask.Select(t => t.TaskOptionId).ToList();
+
                 SelfEvaluation = evaluation;
+
                 return Page();
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Fejl ved indlæsning af SelfEvaluation {Id}", id);
+                _logger.LogError(ex, "Fejl ved indlæsning af evaluering med ID: {Id}", id);
                 TempData["ErrorMessage"] = "Der opstod en uventet fejl ved indlæsning af skemaet.";
                 return RedirectToPage("Index");
             }
@@ -89,6 +101,10 @@ namespace MinaGroup.Backend.Pages.Management.SelfEvaluations
                 {
                     evaluation.NoShowReason = SelfEvaluation.NoShowReason;
                 }
+                else if (SelfEvaluation.IsOffWork)
+                {
+                    evaluation.OffWorkReason = SelfEvaluation.OffWorkReason;
+                }
                 else
                 {
                     evaluation.CommentFromLeader = SelfEvaluation.CommentFromLeader;
@@ -100,6 +116,7 @@ namespace MinaGroup.Backend.Pages.Management.SelfEvaluations
                 await _context.SaveChangesAsync();
 
                 TempData["SuccessMessage"] = "Evalueringen blev opdateret og godkendt med succes.";
+
                 return RedirectToPage("Index");
             }
             catch (DbUpdateException dbEx)

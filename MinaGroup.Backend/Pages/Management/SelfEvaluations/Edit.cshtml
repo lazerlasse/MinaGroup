@@ -6,7 +6,9 @@
 }
 
 <h1 class="text-center display-4 fw-bold text-primary mb-4">@ViewData["Title"]</h1>
+
 <hr />
+
 <div class="row justify-content-center">
     <div class="col-md-8">
         <form method="post" class="p-4 border rounded shadow-sm bg-light">
@@ -15,16 +17,17 @@
             <input type="hidden" asp-for="Evaluation.Id" />
             <input type="hidden" asp-for="Evaluation.UserId" />
 
-            <!-- Borger -->
-            <div class="mb-3">
-                <label class="form-label fw-bold">Borger</label>
-                <input value="@Model.Evaluation.User.FullName" class="form-control" readonly />
-            </div>
-
             <!-- Dato -->
             <div class="mb-3">
-                <label class="form-label fw-bold">Dato</label>
-                <input value="@Model.Evaluation.EvaluationDate.ToShortDateString()" class="form-control" readonly />
+                <label asp-for="Evaluation.EvaluationDate" class="form-label fw-bold"></label>
+                <input value="@Model.Evaluation.EvaluationDate.ToShortDateString()" disabled class="form-control" />
+            </div>
+
+
+            <!-- Borger -->
+            <div class="mb-3">
+                <label asp-for="Evaluation.User" class="form-label fw-bold"></label>
+                <input value="@Model.Evaluation.User.FullName" class="form-control" readonly />
             </div>
 
 
@@ -41,6 +44,8 @@
                 <span asp-validation-for="Evaluation.SickReason" class="text-danger"></span>
             </div>
 
+
+            <!-- IsNoShow -->
             <div class="mb-3 form-check">
                 <label class="form-check-label fw-bold" asp-for="Evaluation.IsNoShow"></label>
                 <input class="form-check-input me-2" type="checkbox" asp-for="Evaluation.IsNoShow" id="SelfEvaluation_IsNoShow" />
@@ -53,18 +58,33 @@
                 <span asp-validation-for="Evaluation.NoShowReason" class="text-danger"></span>
             </div>
 
-            <div id="notSickSection">
+
+            <!-- IsOffWork -->
+            <div class="mb-3 form-check">
+                <label class="form-check-label fw-bold" asp-for="Evaluation.IsOffWork"></label>
+                <input class="form-check-input me-2" type="checkbox" asp-for="Evaluation.IsOffWork" id="SelfEvaluation_IsOffWork" />
+                <span asp-validation-for="Evaluation.IsOffWork" class="text-danger"></span>
+            </div>
+
+            <div class="mb-3" id="offWorkReasonSection" style="display:none;">
+                <label class="form-label fw-bold" asp-for="Evaluation.OffWorkReason"></label>
+                <input asp-for="Evaluation.OffWorkReason" class="form-control" />
+                <span asp-validation-for="Evaluation.OffWorkReason" class="text-danger"></span>
+            </div>
+
+
+            <div id="showFormSection">
                 <!-- ArrivalTime -->
                 <div class="mb-3">
                     <label asp-for="Evaluation.ArrivalTime" class="form-label fw-bold"></label>
-                    <input asp-for="Evaluation.ArrivalTime" type="time" class="form-control" />
+                    <input asp-for="Evaluation.ArrivalTime" type="time" class="form-control" id="SelfEvaluation_ArrivalTime" />
                     <span asp-validation-for="Evaluation.ArrivalTime" class="text-danger"></span>
                 </div>
 
                 <!-- DepartureTime -->
                 <div class="mb-3">
                     <label asp-for="Evaluation.DepartureTime" class="form-label fw-bold"></label>
-                    <input asp-for="Evaluation.DepartureTime" type="time" class="form-control" />
+                    <input asp-for="Evaluation.DepartureTime" type="time" class="form-control" id="SelfEvaluation_DepartureTime" />
                     <span asp-validation-for="Evaluation.DepartureTime" class="text-danger"></span>
                 </div>
 
@@ -72,7 +92,7 @@
                 <div class="mb-3">
                     <label asp-for="Evaluation.TotalHours" class="form-label fw-bold"></label>
                     <input id="totalHoursDisplay" class="form-control" type="text" readonly />
-                    <input type="hidden" asp-for="Evaluation.TotalHours" />
+                    <input type="hidden" asp-for="Evaluation.TotalHours" id="SelfEvaluation_TotalHours" />
                     <span asp-validation-for="Evaluation.TotalHours" class="text-danger"></span>
                 </div>
 
@@ -155,12 +175,29 @@
                     <span asp-validation-for="Evaluation.DiscomfortDescription" class="text-danger"></span>
                 </div>
 
-                <!-- NextMeetingNotes -->
-                <div class="mb-3">
-                    <label asp-for="Evaluation.NextMeetingNotes" class="form-label fw-bold"></label>
-                    <input asp-for="Evaluation.NextMeetingNotes" class="form-control" />
-                    <span asp-validation-for="Evaluation.NextMeetingNotes" class="text-danger"></span>
-                </div>
+
+                <!-- Dagens arbejdsopgaver -->
+                @if (Model.TaskOptions?.Any() == true)
+                {
+                    <div class="mb-3">
+                        <label asp-for="Evaluation.SelectedTask" class="form-label fw-bold"></label>
+                        <div class="d-flex flex-wrap gap-2">
+                            @foreach (var t in Model.TaskOptions)
+                            {
+                                var isChecked = Model.SelectedTaskIds.Contains(t.TaskOptionId);
+                                <div class="form-check">
+                                    <input class="form-check-input"
+                                           type="checkbox"
+                                           name="SelectedTaskIds"
+                                           value="@t.TaskOptionId"
+                                           @(isChecked ? "checked" : null) />
+                                    <label class="form-check-label">@t.TaskName</label>
+                                </div>
+                            }
+                        </div>
+                    </div>
+                }
+
 
                 <!-- CommentFromUser -->
                 <div class="mb-3">
@@ -169,13 +206,34 @@
                     <span asp-validation-for="Evaluation.CommentFromUser" class="text-danger"></span>
                 </div>
 
+
+                <!-- NextMeetingNotes -->
+                <div class="mb-3">
+                    <label asp-for="Evaluation.NextMeetingNotes" class="form-label fw-bold"></label>
+                    <input asp-for="Evaluation.NextMeetingNotes" class="form-control" />
+                    <span asp-validation-for="Evaluation.NextMeetingNotes" class="text-danger"></span>
+                </div>
+
+
                 <!-- CommentFromLeader -->
                 <div class="mb-3">
                     <label asp-for="Evaluation.CommentFromLeader" class="form-label fw-bold"></label>
                     <textarea asp-for="Evaluation.CommentFromLeader" class="form-control"></textarea>
                     <span asp-validation-for="Evaluation.CommentFromLeader" class="text-danger"></span>
                 </div>
-            </div> <!-- /notSickSection -->
+            </div>
+
+
+            <!-- Dato stempler og godkendt sektion -->
+            <div class="mb-3">
+                <label asp-for="Evaluation.LastUpdated" class="form-label fw-bold"></label>
+                <input value="@Model.Evaluation.LastUpdated.ToString("dd.MM.yyyy HH:mm")" disabled class="form-control" />
+            </div>
+
+            <div class="mb-3">
+                <label asp-for="Evaluation.ApprovedByUser" class="form-label fw-bold"></label>
+                <input value="@Model.Evaluation.ApprovedByUser?.FullName" disabled class="form-control" />
+            </div>
 
             <div class="d-flex justify-content-between">
                 <a asp-page="./Index" class="btn btn-outline-secondary">

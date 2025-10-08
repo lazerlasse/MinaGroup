@@ -43,6 +43,14 @@ namespace MinaGroup.Backend.Models
         public string? NoShowReason { get; set; } = string.Empty;
 
 
+        // Fri og lovligt fravær
+        [Display(Name = "Ferie og lovligt fravær")]
+        public bool IsOffWork { get; set; } = false;
+
+        [Display(Name = "Fraværs årsag")]
+        public string? OffWorkReason { get; set; } = string.Empty;
+
+
         // Mødetid og arbejdstid.
         [DisplayName("Tid mødt")]
         public TimeSpan? ArrivalTime { get; set; }

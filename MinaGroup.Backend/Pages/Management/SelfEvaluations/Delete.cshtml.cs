@@ -43,6 +43,7 @@ namespace MinaGroup.Backend.Pages.Management.SelfEvaluations
 
                 var selfevaluation = await _context.SelfEvaluations
                     .Include(e => e.User)
+                    .Include(e => e.ApprovedByUser)
                     .FirstOrDefaultAsync(m => m.Id == id);
 
                 if (selfevaluation == null)

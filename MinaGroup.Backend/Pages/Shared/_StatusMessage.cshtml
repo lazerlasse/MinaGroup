@@ -1,21 +1,46 @@
-﻿@* Pages/Shared/_StatusMessage.cshtml *@
-@{
-    var successMessage = TempData["SuccessMessage"] as string;
-    var errorMessage = TempData["ErrorMessage"] as string;
+﻿@{
+    // Hent besked fra TempData (uanset type)
+    var message = TempData["SuccessMessage"]
+        ?? TempData["ErrorMessage"]
+        ?? TempData["InfoMessage"]
+        ?? TempData["WarningMessage"];
+
+    string alertClass = "alert-secondary";
+
+    if (TempData["SuccessMessage"] != null)
+        alertClass = "alert-success";
+    else if (TempData["ErrorMessage"] != null)
+        alertClass = "alert-danger";
+    else if (TempData["InfoMessage"] != null)
+        alertClass = "alert-info";
+    else if (TempData["WarningMessage"] != null)
+        alertClass = "alert-warning";
 }
 
-@if (!string.IsNullOrEmpty(successMessage))
+@if (message != null)
 {
-    <div class="alert alert-success alert-dismissible fade show" role="alert">
-        @successMessage
-        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Luk"></button>
+    <div id="notification-banner"
+         class="alert @alertClass alert-dismissible fade show shadow-sm mt-3 mx-auto"
+         style="max-width: 600px;"
+         role="alert">
+        <div class="d-flex justify-content-between align-items-center">
+            <span class="me-3">@message</span>
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Luk"></button>
+        </div>
     </div>
-}
 
-@if (!string.IsNullOrEmpty(errorMessage))
-{
-    <div class="alert alert-danger alert-dismissible fade show" role="alert">
-        @errorMessage
-        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Luk"></button>
-    </div>
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const banner = document.getElementById('notification-banner');
+            if (!banner) return;
+
+            const displayTime = 6000;
+
+            setTimeout(() => {
+                banner.classList.remove('show');
+                banner.classList.add('fade');
+                setTimeout(() => banner.remove(), 500);
+            }, displayTime);
+        });
+    </script>
 }
