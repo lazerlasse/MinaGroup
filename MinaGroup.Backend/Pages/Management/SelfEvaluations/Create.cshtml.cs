@@ -2,12 +2,12 @@
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
-using Microsoft.AspNetCore.Mvc.Rendering;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using MinaGroup.Backend.Data;
 using MinaGroup.Backend.Helpers;
 using MinaGroup.Backend.Models;
+using MinaGroup.Backend.Services.Interfaces;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -21,12 +21,18 @@ namespace MinaGroup.Backend.Pages.Management.SelfEvaluations
         private readonly AppDbContext _context;
         private readonly UserManager<AppUser> _userManager;
         private readonly ILogger<CreateModel> _logger;
+        private readonly ICryptoService _cryptoService;
 
-        public CreateModel(AppDbContext context, UserManager<AppUser> userManager, ILogger<CreateModel> logger)
+        public CreateModel(
+            AppDbContext context,
+            UserManager<AppUser> userManager,
+            ILogger<CreateModel> logger,
+            ICryptoService cryptoService)
         {
             _context = context;
             _userManager = userManager;
             _logger = logger;
+            _cryptoService = cryptoService;
         }
 
         // Route values (bruges til visning og readonly)
@@ -47,47 +53,78 @@ namespace MinaGroup.Backend.Pages.Management.SelfEvaluations
 
         // Til visning
         public string? UserFullName { get; set; } = string.Empty;
+        public string? UserCPRNumber { get; set; } = string.Empty;
         public List<TaskOption>? TaskOptions { get; set; } = [];
+
+        // Liste af borgere til dropdown (inkl. maskeret CPR)
+        public List<BorgerUserDto> BorgerUsers { get; set; } = new();
+
+        public class BorgerUserDto
+        {
+            public string Id { get; set; } = string.Empty;
+            public string FullName { get; set; } = string.Empty;
+            public string MaskedCPR { get; set; } = string.Empty;
+        }
 
         public async Task<IActionResult> OnGet(string? userId, string? evaluationDate)
         {
             try
             {
+                // Hvis vi kommer via route med fast brugerId
                 if (!string.IsNullOrEmpty(userId))
                 {
                     RouteUserId = userId;
                     SelfEvaluation.UserId = userId;
 
-                    var user = _context.Users.FirstOrDefault(u => u.Id == userId);
+                    var user = await _context.Users.FirstOrDefaultAsync(u => u.Id == userId);
                     if (user != null)
                     {
+                        // Navn
                         UserFullName = user.GetType().GetProperty("FullName") != null
                             ? (string?)user.GetType().GetProperty("FullName")!.GetValue(user)
                             : $"{user.FirstName} {user.LastName}";
+
+                        // Maskeret CPR (ddMMyy-xxxx)
+                        UserCPRNumber = CprHelper.GetMaskedCpr(user, _cryptoService);
                     }
                 }
 
+                // Dato fra route
                 if (!string.IsNullOrEmpty(evaluationDate) && DateTime.TryParse(evaluationDate, out var d))
                 {
                     RouteEvaluationDate = d.Date;
                     SelfEvaluation.EvaluationDate = d.Date;
                 }
 
+                // Hvis ingen dato fra route → default til i dag
                 if (RouteEvaluationDate == null)
                 {
                     SelfEvaluation.EvaluationDate = DateTime.UtcNow.Date;
                 }
 
-                TaskOptions = _context.TaskOptions.AsNoTracking().OrderBy(t => t.TaskName).ToList();
+                // Dagens opgaver
+                TaskOptions = await _context.TaskOptions
+                    .AsNoTracking()
+                    .OrderBy(t => t.TaskName)
+                    .ToListAsync();
 
+                // Kun hvis vi IKKE har låst bruger via route, hentes liste til dropdown
                 if (string.IsNullOrEmpty(RouteUserId))
                 {
                     var borgerUsers = await _userManager.GetUsersInRoleAsync("Borger");
-                    ViewData["UserId"] = new SelectList(
-                        borgerUsers.OrderBy(u => u.FirstName).ThenBy(u => u.LastName).ToList(),
-                        "Id",
-                        "FullName"
-                    );
+
+                    BorgerUsers = borgerUsers
+                        .OrderBy(u => u.FirstName)
+                        .ThenBy(u => u.LastName)
+                        .Select(u => new BorgerUserDto
+                        {
+                            Id = u.Id,
+                            FullName = u.GetType().GetProperty("FullName") != null
+                                ? (string?)u.GetType().GetProperty("FullName")!.GetValue(u) ?? $"{u.FirstName} {u.LastName}"
+                                : $"{u.FirstName} {u.LastName}",
+                            MaskedCPR = CprHelper.GetMaskedCpr(u, _cryptoService)
+                        })
+                        .ToList();
                 }
 
                 return Page();
@@ -102,18 +139,16 @@ namespace MinaGroup.Backend.Pages.Management.SelfEvaluations
 
         public async Task<IActionResult> OnPostAsync([FromForm] List<int>? SelectedTaskIds)
         {
-            // Remove the user property from the modelstate.
+            // SelfEvaluation.User navigation skal ikke valideres
             ModelState.Remove(nameof(SelfEvaluation) + ".User");
 
-            // Check if evaluation already exist for that user and date.
+            // Check om der allerede findes en evaluering for samme borger og dato
             var alreadyExist = await _context.SelfEvaluations.AnyAsync(
-                e => e.UserId == SelfEvaluation.UserId && 
-                e.EvaluationDate.Date == SelfEvaluation.EvaluationDate.Date);
+                e => e.UserId == SelfEvaluation.UserId &&
+                     e.EvaluationDate.Date == SelfEvaluation.EvaluationDate.Date);
 
-            // Check the model state and evaluation exist.
             if (!ModelState.IsValid || alreadyExist)
             {
-                // Create error message to show.
                 if (alreadyExist)
                 {
                     TempData["ErrorMessage"] = "Der findes allerede en evaluering for denne borger på den valgte dato.";
@@ -123,22 +158,34 @@ namespace MinaGroup.Backend.Pages.Management.SelfEvaluations
                     TempData["ErrorMessage"] = "Der opstod en uventet fejl, prøv venligst igen! Fortsætter problemet, så prøv at gå til oversigten og forsøg at oprette skema påny!";
                 }
 
-                // Reload list of TaskOptions before returning the page.
-                TaskOptions = _context.TaskOptions.AsNoTracking().OrderBy(t => t.TaskName).ToList();
-                
-                // Populate list of users again before returning to the page.
-                var borgerUsers = await _userManager.GetUsersInRoleAsync("Borger");
-                ViewData["UserId"] = new SelectList(
-                    borgerUsers.OrderBy(u => u.FirstName).ThenBy(u => u.LastName).ToList(),
-                    "Id",
-                    "FullName"
-                );
+                // Genindlæs TaskOptions
+                TaskOptions = await _context.TaskOptions
+                    .AsNoTracking()
+                    .OrderBy(t => t.TaskName)
+                    .ToListAsync();
 
-                // Return page.
+                // Genopbyg BorgerUsers til dropdown (hvis vi ikke har RouteUserId)
+                if (string.IsNullOrEmpty(RouteUserId))
+                {
+                    var borgerUsers = await _userManager.GetUsersInRoleAsync("Borger");
+                    BorgerUsers = borgerUsers
+                        .OrderBy(u => u.FirstName)
+                        .ThenBy(u => u.LastName)
+                        .Select(u => new BorgerUserDto
+                        {
+                            Id = u.Id,
+                            FullName = u.GetType().GetProperty("FullName") != null
+                                ? (string?)u.GetType().GetProperty("FullName")!.GetValue(u) ?? $"{u.FirstName} {u.LastName}"
+                                : $"{u.FirstName} {u.LastName}",
+                            MaskedCPR = CprHelper.GetMaskedCpr(u, _cryptoService)
+                        })
+                        .ToList();
+                }
+
                 return Page();
             }
 
-            // Load current user and check is not null.
+            // Load current user og check
             var currentUser = await _userManager.GetUserAsync(User);
             if (currentUser == null)
             {
@@ -149,24 +196,17 @@ namespace MinaGroup.Backend.Pages.Management.SelfEvaluations
 
             try
             {
-                // Beregn total tid
+                // Beregn total tid (bruger din helper)
                 if (SelfEvaluation.ArrivalTime.HasValue && SelfEvaluation.DepartureTime.HasValue)
-                    SelfEvaluation.TotalHours = CalculateTotalWorkHours.CalculateTotalHours(SelfEvaluation.ArrivalTime.Value, SelfEvaluation.DepartureTime.Value, SelfEvaluation.BreakDuration);
+                    SelfEvaluation.TotalHours = CalculateTotalWorkHours.CalculateTotalHours(
+                        SelfEvaluation.ArrivalTime.Value,
+                        SelfEvaluation.DepartureTime.Value,
+                        SelfEvaluation.BreakDuration);
 
-                // Godkend automatisk hvis udfyldt korrekt
-                if (SelfEvaluation.IsSick && !string.IsNullOrEmpty(SelfEvaluation.SickReason))
-                {
-                    SelfEvaluation.IsApproved = true;
-                    SelfEvaluation.ApprovedByUserId = currentUser.Id;
-                }
-
-                if (SelfEvaluation.IsNoShow && !string.IsNullOrEmpty(SelfEvaluation.NoShowReason))
-                {
-                    SelfEvaluation.IsApproved = true;
-                    SelfEvaluation.ApprovedByUserId = currentUser.Id;
-                }
-
-                if (SelfEvaluation.IsOffWork && !string.IsNullOrEmpty(SelfEvaluation.OffWorkReason))
+                // Auto-godkend hvis udfyldt korrekt
+                if ((SelfEvaluation.IsSick && !string.IsNullOrEmpty(SelfEvaluation.SickReason)) ||
+                    (SelfEvaluation.IsNoShow && !string.IsNullOrEmpty(SelfEvaluation.NoShowReason)) ||
+                    (SelfEvaluation.IsOffWork && !string.IsNullOrEmpty(SelfEvaluation.OffWorkReason)))
                 {
                     SelfEvaluation.IsApproved = true;
                     SelfEvaluation.ApprovedByUserId = currentUser.Id;
@@ -176,9 +216,9 @@ namespace MinaGroup.Backend.Pages.Management.SelfEvaluations
 
                 if (SelectedTaskIds is { Count: > 0 })
                 {
-                    SelfEvaluation.SelectedTask = _context.TaskOptions
+                    SelfEvaluation.SelectedTask = await _context.TaskOptions
                         .Where(t => SelectedTaskIds.Contains(t.TaskOptionId))
-                        .ToList();
+                        .ToListAsync();
                 }
 
                 _context.SelfEvaluations.Add(SelfEvaluation);
@@ -189,13 +229,17 @@ namespace MinaGroup.Backend.Pages.Management.SelfEvaluations
             }
             catch (DbUpdateException dbEx)
             {
-                _logger.LogError(dbEx, "Databasefejl ved oprettelse af evalueringsskemaet for borger: {UserId}", SelfEvaluation.User.FullName);
+                _logger.LogError(dbEx,
+                    "Databasefejl ved oprettelse af evalueringsskemaet for borger: {UserId}",
+                    SelfEvaluation.UserId);
                 TempData["ErrorMessage"] = "Der opstod en databasefejl. Prøv igen.";
                 return RedirectToPage("./Index");
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Uventet fejl ved oprettelse af evalueringsskemaet for borger: {UserId}", SelfEvaluation.User.FullName);
+                _logger.LogError(ex,
+                    "Uventet fejl ved oprettelse af evalueringsskemaet for borger: {UserId}",
+                    SelfEvaluation.UserId);
                 TempData["ErrorMessage"] = "Der opstod en uventet fejl. Kontakt support hvis problemet fortsætter.";
                 return RedirectToPage("./Index");
             }

@@ -23,13 +23,17 @@
                 <input value="@Model.Evaluation.EvaluationDate.ToShortDateString()" disabled class="form-control" />
             </div>
 
+            <!-- CPR -->
+            <div class="mb-3">
+                <label class="form-label fw-bold">CPR-nummer</label>
+                <input value="@Model.MaskedCpr" class="form-control" readonly />
+            </div>
 
             <!-- Borger -->
             <div class="mb-3">
                 <label asp-for="Evaluation.User" class="form-label fw-bold"></label>
                 <input value="@Model.Evaluation.User.FullName" class="form-control" readonly />
             </div>
-
 
             <!-- IsSick -->
             <div class="mb-3 form-check">
@@ -44,7 +48,6 @@
                 <span asp-validation-for="Evaluation.SickReason" class="text-danger"></span>
             </div>
 
-
             <!-- IsNoShow -->
             <div class="mb-3 form-check">
                 <label class="form-check-label fw-bold" asp-for="Evaluation.IsNoShow"></label>
@@ -58,7 +61,6 @@
                 <span asp-validation-for="Evaluation.NoShowReason" class="text-danger"></span>
             </div>
 
-
             <!-- IsOffWork -->
             <div class="mb-3 form-check">
                 <label class="form-check-label fw-bold" asp-for="Evaluation.IsOffWork"></label>
@@ -71,7 +73,6 @@
                 <input asp-for="Evaluation.OffWorkReason" class="form-control" />
                 <span asp-validation-for="Evaluation.OffWorkReason" class="text-danger"></span>
             </div>
-
 
             <div id="showFormSection">
                 <!-- ArrivalTime -->
@@ -116,7 +117,9 @@
                     <select asp-for="Evaluation.ArrivalStatus" class="form-select">
                         @foreach (var option in Model.ArrivalOptions)
                         {
-                            <option value="@option" selected="@(option == Model.Evaluation.ArrivalStatus ? "selected" : null)">@option</option>
+                            <option value="@option" selected="@(option == Model.Evaluation.ArrivalStatus ? "selected" : null)">
+                                @option
+                            </option>
                         }
                     </select>
                 </div>
@@ -127,7 +130,9 @@
                     <select asp-for="Evaluation.Collaboration" class="form-select">
                         @foreach (var option in Model.CollaborationOptions)
                         {
-                            <option value="@option" selected="@(option == Model.Evaluation.Collaboration ? "selected" : null)">@option</option>
+                            <option value="@option" selected="@(option == Model.Evaluation.Collaboration ? "selected" : null)">
+                                @option
+                            </option>
                         }
                     </select>
                 </div>
@@ -138,7 +143,9 @@
                     <select asp-for="Evaluation.Assistance" class="form-select">
                         @foreach (var option in Model.AssistanceOptions)
                         {
-                            <option value="@option" selected="@(option == Model.Evaluation.Assistance ? "selected" : null)">@option</option>
+                            <option value="@option" selected="@(option == Model.Evaluation.Assistance ? "selected" : null)">
+                                @option
+                            </option>
                         }
                     </select>
                 </div>
@@ -149,7 +156,9 @@
                     <select asp-for="Evaluation.Aid" class="form-select" id="SelfEvaluation_Aid">
                         @foreach (var option in Model.AidOptions)
                         {
-                            <option value="@option" selected="@(option == Model.Evaluation.Aid ? "selected" : null)">@option</option>
+                            <option value="@option" selected="@(option == Model.Evaluation.Aid ? "selected" : null)">
+                                @option
+                            </option>
                         }
                     </select>
                 </div>
@@ -175,7 +184,6 @@
                     <span asp-validation-for="Evaluation.DiscomfortDescription" class="text-danger"></span>
                 </div>
 
-
                 <!-- Dagens arbejdsopgaver -->
                 @if (Model.TaskOptions?.Any() == true)
                 {
@@ -198,14 +206,12 @@
                     </div>
                 }
 
-
                 <!-- CommentFromUser -->
                 <div class="mb-3">
                     <label asp-for="Evaluation.CommentFromUser" class="form-label fw-bold"></label>
                     <textarea asp-for="Evaluation.CommentFromUser" class="form-control" readonly></textarea>
                     <span asp-validation-for="Evaluation.CommentFromUser" class="text-danger"></span>
                 </div>
-
 
                 <!-- NextMeetingNotes -->
                 <div class="mb-3">
@@ -214,7 +220,6 @@
                     <span asp-validation-for="Evaluation.NextMeetingNotes" class="text-danger"></span>
                 </div>
 
-
                 <!-- CommentFromLeader -->
                 <div class="mb-3">
                     <label asp-for="Evaluation.CommentFromLeader" class="form-label fw-bold"></label>
@@ -222,7 +227,6 @@
                     <span asp-validation-for="Evaluation.CommentFromLeader" class="text-danger"></span>
                 </div>
             </div>
-
 
             <!-- Dato stempler og godkendt sektion -->
             <div class="mb-3">

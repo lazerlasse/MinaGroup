@@ -1,0 +1,48 @@
+Reader Role for azure connection:
+{
+  "appId": "fe8f7e93-4cdc-4613-8c17-ef349dacd6a6",
+  "displayName": "sp-minagroup-backend",
+  "password": "aX98Q~W7cSiMu-kTY660AMtylPQbUIUWbyJs9bSX",
+  "tenant": "0887a9aa-fc48-49f5-a58b-182db9e3c1f9"
+}
+
+Key Wault Crypto User:
+{
+  "condition": null,
+  "conditionVersion": null,
+  "createdBy": null,
+  "createdOn": "2025-11-17T08:42:19.866240+00:00",
+  "delegatedManagedIdentityResourceId": null,
+  "description": null,
+  "id": "/subscriptions/451cf497-9e2e-47cf-897d-aaa1498fde80/resourceGroups/rg-minagroup-prod/providers/Microsoft.KeyVault/vaults/kv-minagroup-prod/providers/Microsoft.Authorization/roleAssignments/738a8995-2aa7-4af5-9d47-231273accc69",
+  "name": "738a8995-2aa7-4af5-9d47-231273accc69",
+  "principalId": "83a86ce7-b96f-487e-8dda-3a056ca53f06",
+  "principalType": "ServicePrincipal",
+  "resourceGroup": "rg-minagroup-prod",
+  "roleDefinitionId": "/subscriptions/451cf497-9e2e-47cf-897d-aaa1498fde80/providers/Microsoft.Authorization/roleDefinitions/12338af0-0e69-4776-bea7-57ae8d297424",
+  "scope": "/subscriptions/451cf497-9e2e-47cf-897d-aaa1498fde80/resourceGroups/rg-minagroup-prod/providers/Microsoft.KeyVault/vaults/kv-minagroup-prod",
+  "type": "Microsoft.Authorization/roleAssignments",
+  "updatedBy": "81f96f94-ef97-46ef-9ac4-72fa045ad445",
+  "updatedOn": "2025-11-17T08:42:21.270289+00:00"
+}
+
+
+Storage Blob Data Contributor:
+{
+  "condition": null,
+  "conditionVersion": null,
+  "createdBy": null,
+  "createdOn": "2025-11-17T08:44:30.518829+00:00",
+  "delegatedManagedIdentityResourceId": null,
+  "description": null,
+  "id": "/subscriptions/451cf497-9e2e-47cf-897d-aaa1498fde80/resourceGroups/rg-minagroup-prod/providers/Microsoft.Storage/storageAccounts/samgprod/providers/Microsoft.Authorization/roleAssignments/b72ca557-e3f5-42ee-8467-f4716feda4b4",
+  "name": "b72ca557-e3f5-42ee-8467-f4716feda4b4",
+  "principalId": "83a86ce7-b96f-487e-8dda-3a056ca53f06",
+  "principalType": "ServicePrincipal",
+  "resourceGroup": "rg-minagroup-prod",
+  "roleDefinitionId": "/subscriptions/451cf497-9e2e-47cf-897d-aaa1498fde80/providers/Microsoft.Authorization/roleDefinitions/ba92f5b4-2d11-453d-a403-e96b0029c9fe",
+  "scope": "/subscriptions/451cf497-9e2e-47cf-897d-aaa1498fde80/resourceGroups/rg-minagroup-prod/providers/Microsoft.Storage/storageAccounts/samgprod",
+  "type": "Microsoft.Authorization/roleAssignments",
+  "updatedBy": "81f96f94-ef97-46ef-9ac4-72fa045ad445",
+  "updatedOn": "2025-11-17T08:44:30.914146+00:00"
+}

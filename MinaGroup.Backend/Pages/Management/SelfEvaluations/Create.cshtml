@@ -16,10 +16,9 @@
         <form method="post" class="p-4 border rounded shadow-sm bg-light">
             <div asp-validation-summary="ModelOnly" class="text-danger mb-3"></div>
 
-            <!-- Hidden binding -->
+            <!-- Hidden binding (kun hvis vi kommer via route med låst bruger/dato) -->
             @if (!string.IsNullOrEmpty(Model.RouteUserId))
             {
-                <!-- Kommer via route, så vi fastholder bruger og dato -->
                 <input type="hidden" asp-for="SelfEvaluation.UserId" />
                 <input type="hidden" asp-for="SelfEvaluation.EvaluationDate" />
             }
@@ -38,21 +37,47 @@
                 }
             </div>
 
+            <!-- CPR felt -->
+            <div class="mb-3">
+                <label class="form-label fw-bold">CPR-nummer</label>
+                @if (!string.IsNullOrEmpty(Model.RouteUserId) && !string.IsNullOrEmpty(Model.UserCPRNumber))
+                {
+                    <!-- Kommer via route: vis CPR for den låste bruger (allerede maskeret) -->
+                    <input value="@Model.UserCPRNumber" class="form-control" readonly />
+                }
+                else
+                {
+                    <!-- Ingen route-bruger: vis dynamisk CPR for valgt borger -->
+                    <input id="SelectedUserCpr" class="form-control" type="text" readonly />
+                }
+            </div>
+
             <!-- Borger: hvis route param er sat vis readonly navn, ellers dropdown -->
             <div class="mb-3">
-                <label asp-for="SelfEvaluation.User" class="form-label fw-bold"></label>
+                <label class="form-label fw-bold">Borger</label>
                 @if (!string.IsNullOrEmpty(Model.RouteUserId) && !string.IsNullOrEmpty(Model.UserFullName))
                 {
                     <input value="@Model.UserFullName" class="form-control" readonly />
                 }
                 else
                 {
-                    <select asp-for="SelfEvaluation.UserId" class="form-select"
-                            asp-items="@(ViewData["UserId"] as SelectList)"></select>
+                    <select asp-for="SelfEvaluation.UserId"
+                            class="form-select"
+                            id="UserSelect">
+                        <option value="">-- Vælg borger --</option>
+                        @if (Model.BorgerUsers != null)
+                        {
+                            foreach (var u in Model.BorgerUsers)
+                            {
+                                <option value="@u.Id" data-cpr="@u.MaskedCPR">
+                                    @u.FullName (@u.MaskedCPR)
+                                </option>
+                            }
+                        }
+                    </select>
                     <span asp-validation-for="SelfEvaluation.UserId" class="text-danger"></span>
                 }
             </div>
-
 
             <!-- Sygdom -->
             <div class="mb-3">
@@ -69,7 +94,6 @@
                 <span asp-validation-for="SelfEvaluation.SickReason" class="text-danger"></span>
             </div>
 
-
             <!-- Udeblevet -->
             <div class="mb-3">
                 <label asp-for="SelfEvaluation.IsNoShow" class="form-label fw-bold"></label>
@@ -85,7 +109,6 @@
                 <span asp-validation-for="SelfEvaluation.NoShowReason" class="text-danger"></span>
             </div>
 
-
             <!-- Fri og lovligt fravær -->
             <div class="mb-3">
                 <label asp-for="SelfEvaluation.IsOffWork" class="form-label fw-bold"></label>
@@ -100,7 +123,6 @@
                 <textarea asp-for="SelfEvaluation.OffWorkReason" class="form-control"></textarea>
                 <span asp-validation-for="SelfEvaluation.OffWorkReason" class="text-danger"></span>
             </div>
-
 
             <!-- alt andet indhold pakkes i denne sektion og skjules når IsSick===true via JS -->
             <div id="showFormSection">
@@ -187,7 +209,7 @@
                     <span asp-validation-for="SelfEvaluation.DiscomfortDescription" class="text-danger"></span>
                 </div>
 
-                @* Valgfri: checkbox-liste for TaskOptions hvis I bruger dette *@
+                @* Dagens arbejdsopgaver *@
                 @if (Model.TaskOptions?.Any() == true)
                 {
                     <div class="mb-3">
@@ -223,8 +245,6 @@
                 </div>
             </div>
 
-            
-
             <div class="d-flex justify-content-between">
                 <a class="btn btn-outline-secondary" asp-page="./Index">Fortryd</a>
                 <button type="submit" class="btn btn-outline-primary">Opret / Gem</button>
@@ -238,4 +258,5 @@
 
     <!-- JS som styrer vis/skjul og beregner TotalHours (samme fil som tidligere) -->
     <script src="~/js/selfevaluation-form.js"></script>
+    <script src="~/js/cpr-sync.js"></script>
 }

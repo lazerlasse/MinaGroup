@@ -19,13 +19,17 @@
                 <input value="@Model.SelfEvaluation.EvaluationDate.ToShortDateString()" disabled class="form-control" />
             </div>
 
+            <!-- CPR -->
+            <div class="mb-3">
+                <label class="form-label fw-bold">CPR-nummer</label>
+                <input value="@Model.MaskedCpr" disabled class="form-control" />
+            </div>
 
             <!-- Borger -->
             <div class="mb-3">
                 <label class="form-label fw-bold">Borger</label>
                 <input value="@Model.SelfEvaluation.User.FullName" disabled class="form-control" />
             </div>
-
 
             <!-- Sygedom sektion -->
             <div class="mb-3">
@@ -45,7 +49,6 @@
                 </div>
             }
 
-
             <!-- Udeblevet sektion -->
             <div class="mb-3">
                 <label class="form-label fw-bold">@Html.DisplayNameFor(m => m.SelfEvaluation.IsNoShow)</label>
@@ -64,7 +67,6 @@
                 </div>
             }
 
-
             <!-- Ferie og fraværs sektion -->
             <div class="mb-3">
                 <label class="form-label fw-bold">@Html.DisplayNameFor(m => m.SelfEvaluation.IsOffWork)</label>
@@ -82,7 +84,6 @@
                     <input value="@Model.SelfEvaluation.OffWorkReason" disabled class="form-control" />
                 </div>
             }
-
 
             <!-- Arbejdstid og Pause sektion -->
             <div class="mb-3">
@@ -119,7 +120,6 @@
                 <input value="@Model.SelfEvaluation.ArrivalStatus" disabled class="form-control" />
             </div>
 
-            
             <!-- Hjælp og samarbejde sektion -->
             <div class="mb-3">
                 <label asp-for="SelfEvaluation.Collaboration" class="form-label fw-bold"></label>
@@ -141,7 +141,6 @@
                 <input value="@Model.SelfEvaluation.AidDescription" disabled class="form-control" />
             </div>
 
-
             <!-- Skader eller ubehag sektion -->
             <div class="mb-3">
                 <label class="form-label fw-bold">@Html.DisplayNameFor(m => m.SelfEvaluation.HadDiscomfort)</label>
@@ -156,7 +155,6 @@
                 <label asp-for="SelfEvaluation.DiscomfortDescription" class="form-label fw-bold"></label>
                 <input value="@Model.SelfEvaluation.DiscomfortDescription" disabled class="form-control" />
             </div>
-
 
             <!-- Dagens arbejdsopgaver -->
             @if (Model.TaskOptions?.Any() == true)
@@ -181,7 +179,6 @@
                 </div>
             }
 
-
             <!-- Kommentar sektion -->
             <div class="mb-3">
                 <label asp-for="SelfEvaluation.CommentFromUser" class="form-label fw-bold"></label>
@@ -197,7 +194,6 @@
                 <label asp-for="SelfEvaluation.CommentFromLeader" class="form-label fw-bold"></label>
                 <textarea disabled class="form-control">@Model.SelfEvaluation.CommentFromLeader</textarea>
             </div>
-
 
             <!-- Dato stempler og godkendt sektion -->
             <div class="mb-3">

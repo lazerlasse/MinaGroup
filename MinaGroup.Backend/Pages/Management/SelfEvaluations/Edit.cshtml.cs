@@ -10,6 +10,7 @@ using Microsoft.Extensions.Logging;
 using MinaGroup.Backend.Data;
 using MinaGroup.Backend.Helpers;
 using MinaGroup.Backend.Models;
+using MinaGroup.Backend.Services.Interfaces;
 
 namespace MinaGroup.Backend.Pages.Management.SelfEvaluations
 {
@@ -18,11 +19,16 @@ namespace MinaGroup.Backend.Pages.Management.SelfEvaluations
     {
         private readonly AppDbContext _context;
         private readonly ILogger<EditModel> _logger;
+        private readonly ICryptoService _cryptoService;
 
-        public EditModel(AppDbContext context, ILogger<EditModel> logger)
+        public EditModel(
+            AppDbContext context,
+            ILogger<EditModel> logger,
+            ICryptoService cryptoService)
         {
             _context = context ?? throw new ArgumentNullException(nameof(context));
             _logger = logger ?? throw new ArgumentNullException(nameof(logger));
+            _cryptoService = cryptoService ?? throw new ArgumentNullException(nameof(cryptoService));
         }
 
         [BindProperty]
@@ -37,6 +43,9 @@ namespace MinaGroup.Backend.Pages.Management.SelfEvaluations
         public List<string> CollaborationOptions { get; set; } = ["Intet valgt", "Godt", "Okay", "Dårligt"];
         public List<string> AssistanceOptions { get; set; } = ["Intet valgt", "Klarer det selv", "Lidt hjælp", "Meget hjælp"];
         public List<string> AidOptions { get; set; } = ["Nej", "Ja – hvilke?", "Har brug for noget – hvad?"];
+
+        // Maskeret CPR til visning (ddMMyy-xxxx)
+        public string? MaskedCpr { get; set; }
 
         public async Task<IActionResult> OnGetAsync(int id)
         {
@@ -58,12 +67,24 @@ namespace MinaGroup.Backend.Pages.Management.SelfEvaluations
                 }
 
                 // Hent alle task options
-                TaskOptions = await _context.TaskOptions.AsNoTracking().OrderBy(t => t.TaskName).ToListAsync();
+                TaskOptions = await _context.TaskOptions
+                    .AsNoTracking()
+                    .OrderBy(t => t.TaskName)
+                    .ToListAsync();
 
                 // Sæt valgte IDs
-                SelectedTaskIds = evaluation.SelectedTask.Select(t => t.TaskOptionId).ToList();
+                SelectedTaskIds = evaluation.SelectedTask
+                    .Select(t => t.TaskOptionId)
+                    .ToList();
 
                 Evaluation = evaluation;
+
+                // Sæt maskeret CPR til visning
+                if (Evaluation.User != null)
+                {
+                    MaskedCpr = CprHelper.GetMaskedCpr(Evaluation.User, _cryptoService);
+                }
+
                 return Page();
             }
             catch (Exception ex)
@@ -143,7 +164,10 @@ namespace MinaGroup.Backend.Pages.Management.SelfEvaluations
 
                 // Beregn total tid igen ved ændringer
                 if (Evaluation.ArrivalTime.HasValue && Evaluation.DepartureTime.HasValue)
-                    evalInDb.TotalHours = CalculateTotalWorkHours.CalculateTotalHours(Evaluation.ArrivalTime.Value, Evaluation.DepartureTime.Value, Evaluation.BreakDuration);
+                    evalInDb.TotalHours = CalculateTotalWorkHours.CalculateTotalHours(
+                        Evaluation.ArrivalTime.Value,
+                        Evaluation.DepartureTime.Value,
+                        Evaluation.BreakDuration);
 
                 await _context.SaveChangesAsync();
 
@@ -167,8 +191,24 @@ namespace MinaGroup.Backend.Pages.Management.SelfEvaluations
                 .Include(e => e.SelectedTask)
                 .FirstOrDefaultAsync(e => e.Id == evalId) ?? new SelfEvaluation();
 
-            TaskOptions = await _context.TaskOptions.AsNoTracking().OrderBy(t => t.TaskName).ToListAsync();
-            SelectedTaskIds = Evaluation.SelectedTask.Select(t => t.TaskOptionId).ToList();
+            TaskOptions = await _context.TaskOptions
+                .AsNoTracking()
+                .OrderBy(t => t.TaskName)
+                .ToListAsync();
+
+            SelectedTaskIds = Evaluation.SelectedTask
+                .Select(t => t.TaskOptionId)
+                .ToList();
+
+            // Sørg for at CPR også er sat efter reload
+            if (Evaluation.User != null)
+            {
+                MaskedCpr = CprHelper.GetMaskedCpr(Evaluation.User, _cryptoService);
+            }
+            else
+            {
+                MaskedCpr = null;
+            }
         }
     }
 }

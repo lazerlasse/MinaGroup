@@ -6,7 +6,11 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using MinaGroup.Backend.Data;
 using MinaGroup.Backend.Models;
+using MinaGroup.Backend.Helpers;
+using MinaGroup.Backend.Services.Interfaces;
 using System;
+using System.Collections.Generic;
+using System.Linq;
 using System.Threading.Tasks;
 
 namespace MinaGroup.Backend.Pages.Management.SelfEvaluations
@@ -17,12 +21,18 @@ namespace MinaGroup.Backend.Pages.Management.SelfEvaluations
         private readonly AppDbContext _context;
         private readonly UserManager<AppUser> _userManager;
         private readonly ILogger<CommentModel> _logger;
+        private readonly ICryptoService _cryptoService;
 
-        public CommentModel(AppDbContext context, UserManager<AppUser> userManager, ILogger<CommentModel> logger)
+        public CommentModel(
+            AppDbContext context,
+            UserManager<AppUser> userManager,
+            ILogger<CommentModel> logger,
+            ICryptoService cryptoService)
         {
             _context = context;
             _userManager = userManager;
             _logger = logger;
+            _cryptoService = cryptoService;
         }
 
         [BindProperty]
@@ -32,6 +42,9 @@ namespace MinaGroup.Backend.Pages.Management.SelfEvaluations
 
         [BindProperty]
         public List<int> SelectedTaskIds { get; set; } = [];
+
+        // Maskeret CPR til visning på siden
+        public string? MaskedCpr { get; set; }
 
         public async Task<IActionResult> OnGetAsync(int id)
         {
@@ -57,12 +70,23 @@ namespace MinaGroup.Backend.Pages.Management.SelfEvaluations
                     return NotFound();
                 }
 
-                TaskOptions = _context.TaskOptions.AsNoTracking().OrderBy(t => t.TaskName).ToList();
+                TaskOptions = _context.TaskOptions
+                    .AsNoTracking()
+                    .OrderBy(t => t.TaskName)
+                    .ToList();
 
                 // Sæt valgte IDs
-                SelectedTaskIds = evaluation.SelectedTask.Select(t => t.TaskOptionId).ToList();
+                SelectedTaskIds = evaluation.SelectedTask
+                    .Select(t => t.TaskOptionId)
+                    .ToList();
 
                 SelfEvaluation = evaluation;
+
+                // Sæt maskeret CPR vha. CprHelper
+                if (SelfEvaluation.User != null)
+                {
+                    MaskedCpr = CprHelper.GetMaskedCpr(SelfEvaluation.User, _cryptoService);
+                }
 
                 return Page();
             }

@@ -20,7 +20,7 @@ namespace MinaGroup.Backend.Pages.Management.UserManagement
         }
 
         public IList<UserViewModel> Users { get; set; } = [];
-        public string CurrentFilter { get; set; } = string.Empty;
+        public string? CurrentFilter { get; set; } = string.Empty;
 
         public class UserViewModel
         {
@@ -32,40 +32,29 @@ namespace MinaGroup.Backend.Pages.Management.UserManagement
             public IList<string> Roles { get; set; } = [];
         }
 
-        public async Task OnGetAsync(string searchString)
+        public async Task OnGetAsync(string? searchString)
         {
             CurrentFilter = searchString;
 
-            var users = _userManager.Users.AsQueryable();
+            var usersQuery = _userManager.Users.AsQueryable();
 
-            if (!string.IsNullOrEmpty(searchString))
+            if (!string.IsNullOrWhiteSpace(searchString))
             {
-                users = users.Where(u => u.Email.Contains(searchString)
-                                       || u.FirstName.Contains(searchString)
-                                       || u.LastName.Contains(searchString));
+                usersQuery = usersQuery.Where(u =>
+                    u.Email!.Contains(searchString) ||
+                    u.FirstName!.Contains(searchString) ||
+                    u.LastName!.Contains(searchString));
             }
 
-            var userList = await users.ToListAsync();
+            var userList = await usersQuery.ToListAsync();
             Users = [];
 
             foreach (var user in userList)
             {
                 var roles = await _userManager.GetRolesAsync(user);
 
-                // Filtrering baseret på hvem der er logget ind
-                if (User.IsInRole("Admin"))
-                {
-                    // Admin må IKKE se SysAdmin
-                    if (roles.Contains("SysAdmin"))
-                        continue;
-                }
-
-                if (User.IsInRole("SysAdmin"))
-                {
-                    // SysAdmin må IKKE se Borger
-                    if (roles.Contains("Borger"))
-                        continue;
-                }
+                if (!CanCurrentUserSeeUser(roles))
+                    continue;
 
                 Users.Add(new UserViewModel
                 {
@@ -77,6 +66,56 @@ namespace MinaGroup.Backend.Pages.Management.UserManagement
                     Roles = roles
                 });
             }
+        }
+
+        private bool CanCurrentUserSeeUser(IList<string> candidateRoles)
+        {
+            var r = new HashSet<string>(candidateRoles, StringComparer.OrdinalIgnoreCase);
+
+            bool isSysAdmin = r.Contains("SysAdmin");
+            bool isAdmin = r.Contains("Admin");
+            bool isBorger = r.Contains("Borger");
+            bool isLeder = r.Contains("Leder");
+
+            // -------- SYSADMIN LOGIK --------
+            // SysAdmin må se:
+            //  - alle med SysAdmin
+            //  - alle med Admin
+            //  - alle med Leder
+            //  - borgere, hvis de OGSÅ er Admin/SysAdmin/Leder
+            if (User.IsInRole("SysAdmin"))
+            {
+                if (isSysAdmin || isAdmin || isLeder)
+                    return true;
+
+                // Ren borger (kun Borger) -> skjules
+                if (isBorger && !isSysAdmin && !isAdmin && !isLeder)
+                    return false;
+
+                // Brugere uden nogen af rollerne ovenfor (meget edge-case) -> skjules
+                return false;
+            }
+
+            // -------- ADMIN LOGIK --------
+            // Admin må se:
+            //  - Admin
+            //  - Borger
+            //  - Leder
+            //  (og kombinationer med SysAdmin)
+            if (User.IsInRole("Admin"))
+            {
+                if (isAdmin || isBorger || isLeder)
+                    return true;
+
+                // Ren SysAdmin (kun SysAdmin) -> skjules
+                if (isSysAdmin && !isAdmin && !isBorger && !isLeder)
+                    return false;
+
+                return false;
+            }
+
+            // Andre roller har ikke adgang til brugerlisten
+            return false;
         }
     }
 }

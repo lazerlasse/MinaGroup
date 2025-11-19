@@ -20,6 +20,12 @@
                     <input value="@Model.SelfEvaluation.EvaluationDate.ToShortDateString()" disabled class="form-control" />
                 </div>
 
+                <!-- CPR -->
+                <div class="mb-3">
+                    <label class="form-label fw-bold">CPR-nummer</label>
+                    <input value="@Model.MaskedCpr" class="form-control" readonly />
+                </div>
+
                 <!-- Borger -->
                 <div class="mb-3">
                     <label asp-for="SelfEvaluation.User" class="form-label fw-bold"></label>

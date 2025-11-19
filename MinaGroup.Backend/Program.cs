@@ -1,3 +1,6 @@
+using Azure.Identity;
+using Azure.Extensions.AspNetCore.DataProtection.Blobs;
+using Azure.Extensions.AspNetCore.DataProtection.Keys;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.DataProtection;
@@ -15,16 +18,51 @@ using System.Text;
 
 var builder = WebApplication.CreateBuilder(args);
 
+// ---------- Azure AD Service Principal credentials ----------
+var tenantId = builder.Configuration["AzureAd:TenantId"];
+var clientId = builder.Configuration["AzureAd:ClientId"];
+var clientSecret = builder.Configuration["AzureAd:ClientSecret"];
+
+if (string.IsNullOrWhiteSpace(tenantId) ||
+    string.IsNullOrWhiteSpace(clientId) ||
+    string.IsNullOrWhiteSpace(clientSecret))
+{
+    throw new InvalidOperationException(
+        "AzureAd:TenantId, AzureAd:ClientId eller AzureAd:ClientSecret mangler i konfigurationen.");
+}
+
+// Brug en ren ClientSecretCredential (samme i dev og prod)
+var credential = new ClientSecretCredential(tenantId, clientId, clientSecret);
+
+// ---------- Konfiguration til Data Protection / Key Vault ----------
+var dpContainerUri = builder.Configuration["DataProtection:BlobUri"]; // fx https://samgprod.blob.core.windows.net/dataprotection-keys
+var kvVaultUri = builder.Configuration["KeyVault:VaultUri"];      // fx https://kv-minagroup-prod.vault.azure.net/
+var kvKeyName = builder.Configuration["KeyVault:KeyName"];       // fx dataprotection-key
+
+if (string.IsNullOrWhiteSpace(dpContainerUri) ||
+    string.IsNullOrWhiteSpace(kvVaultUri) ||
+    string.IsNullOrWhiteSpace(kvKeyName))
+{
+    throw new InvalidOperationException(
+        "DataProtection:BlobUri, KeyVault:VaultUri eller KeyVault:KeyName mangler i konfigurationen.");
+}
+
+// Blob hvor Data Protection keyring gemmes (én xml-fil i containeren)
+var blobUri = new Uri($"{dpContainerUri.TrimEnd('/')}/keys.xml");
+
+// Key Vault key identifier
+var keyIdentifier = new Uri($"{kvVaultUri.TrimEnd('/')}/keys/{kvKeyName}");
+
+// ---------- Data Protection ----------
 builder.Services.AddDataProtection()
     .SetApplicationName("MinaGroup.Backend")
-    // Produktionsråd: persister nøgler sikkert, fx Azure Blob/KeyVault. 
-    // For dev kan du bruge filsystem:
-    .PersistKeysToFileSystem(new DirectoryInfo(Path.Combine(Directory.GetCurrentDirectory(), "DataProtection-Keys")));
+    .PersistKeysToAzureBlobStorage(blobUri, credential)
+    .ProtectKeysWithAzureKeyVault(keyIdentifier, credential);
 
-// Register vores krypteringsservice
+// Register vores krypteringsservice, der bruger Data Protection
 builder.Services.AddSingleton<ICryptoService, DataProtectionCryptoService>();
 
-// Connection string
+// ---------- Database ----------
 var connStr = builder.Configuration.GetConnectionString("DefaultConnection");
 builder.Services.AddDbContext<AppDbContext>(options =>
     options.UseMySql(connStr, ServerVersion.AutoDetect(connStr), mysqlOptions =>
@@ -32,7 +70,7 @@ builder.Services.AddDbContext<AppDbContext>(options =>
         mysqlOptions.EnableRetryOnFailure(5, TimeSpan.FromSeconds(30), null);
     }));
 
-// Identity + cookies
+// ---------- Identity + cookies ----------
 builder.Services.AddIdentity<AppUser, IdentityRole>(options =>
 {
     options.Password.RequireDigit = true;
@@ -46,24 +84,35 @@ builder.Services.AddIdentity<AppUser, IdentityRole>(options =>
 .AddEntityFrameworkStores<AppDbContext>()
 .AddDefaultTokenProviders();
 
-// Email og token services
+// ---------- Email og token services ----------
+var sendGridKey = builder.Configuration["SendGrid:SendGridKey"];
+if (string.IsNullOrWhiteSpace(sendGridKey))
+{
+    throw new InvalidOperationException("SendGrid:SendGridKey er ikke sat i konfigurationen.");
+}
+
 builder.Services.Configure<AuthMessageSenderOptions>(options =>
 {
-    options.SendGridKey = builder.Configuration["SendGrid:SendGridKey"];
+    options.SendGridKey = sendGridKey;
 });
 builder.Services.AddTransient<IEmailSender, EmailSender>();
 builder.Services.AddScoped<ITokenService, TokenService>();
 
-// JWT setup til mobilapp
+// ---------- JWT setup til mobilapp ----------
 var jwtKey = builder.Configuration["Jwt:Key"];
 var jwtIssuer = builder.Configuration["Jwt:Issuer"];
 var jwtAudience = builder.Configuration["Jwt:Audience"];
+
+if (string.IsNullOrWhiteSpace(jwtKey))
+{
+    throw new InvalidOperationException("Jwt:Key er ikke sat i konfigurationen.");
+}
+
 var jwtKeyBytes = Encoding.UTF8.GetBytes(jwtKey);
 
-// Authentication: cookies til web, JWT til API
 builder.Services.AddAuthentication(options =>
 {
-    options.DefaultScheme = CookieAuthenticationDefaults.AuthenticationScheme; // default for web
+    options.DefaultScheme = CookieAuthenticationDefaults.AuthenticationScheme;
     options.DefaultChallengeScheme = CookieAuthenticationDefaults.AuthenticationScheme;
 })
 .AddCookie(CookieAuthenticationDefaults.AuthenticationScheme, options =>
@@ -71,7 +120,7 @@ builder.Services.AddAuthentication(options =>
     options.LoginPath = "/Identity/Account/Login";
     options.AccessDeniedPath = "/Identity/Account/AccessDenied";
     options.Cookie.HttpOnly = true;
-    options.Cookie.SecurePolicy = CookieSecurePolicy.SameAsRequest; // brug HTTPS i prod
+    options.Cookie.SecurePolicy = CookieSecurePolicy.SameAsRequest; // skru evt. op til Always i prod
 })
 .AddJwtBearer(JwtBearerDefaults.AuthenticationScheme, options =>
 {
@@ -102,11 +151,11 @@ builder.Services.AddAuthentication(options =>
     };
 });
 
-// Razor Pages + MVC Controllers
+// ---------- MVC / Razor Pages ----------
 builder.Services.AddRazorPages();
 builder.Services.AddControllers();
 
-// CORS til mobilapp
+// ---------- CORS (til mobilapp) ----------
 builder.Services.AddCors(options =>
 {
     options.AddPolicy("AllowAll", policy =>
@@ -115,25 +164,20 @@ builder.Services.AddCors(options =>
     });
 });
 
-// Tilføj cookie policy service
+// ---------- Cookie policy ----------
 builder.Services.Configure<CookiePolicyOptions>(options =>
 {
-    // Brugeren skal give samtykke til ikke-nødvendige cookies
     options.CheckConsentNeeded = context => true;
-
-    // SameSite policy (kan være Strict, Lax eller None afhængigt af krav)
     options.MinimumSameSitePolicy = SameSiteMode.Lax;
-
-    // Sørger for at cookies markeres som HttpOnly og Secure hvor muligt
     options.Secure = CookieSecurePolicy.Always;
 });
 
-// PDF Service.
+// ---------- PDF Service ----------
 builder.Services.AddScoped<SelfEvaluationPdfService>();
 
 var app = builder.Build();
 
-// Migration + seeding
+// ---------- Migration + seeding ----------
 using (var scope = app.Services.CreateScope())
 {
     var services = scope.ServiceProvider;
@@ -150,7 +194,7 @@ using (var scope = app.Services.CreateScope())
     }
 }
 
-// Middleware pipeline
+// ---------- Middleware pipeline ----------
 if (!app.Environment.IsDevelopment())
 {
     app.UseExceptionHandler("/Error");
@@ -164,13 +208,13 @@ app.UseRouting();
 
 app.UseCors("AllowAll");
 
-// Cookie policy middleware SKAL være før Authentication/Authorization
+// Cookie policy før auth
 app.UseCookiePolicy();
 
-app.UseAuthentication(); // vigtigt: før Authorization
+app.UseAuthentication();
 app.UseAuthorization();
 
-app.MapRazorPages();     // Browser UI
-app.MapControllers();    // API routes
+app.MapRazorPages();
+app.MapControllers();
 
 app.Run();
