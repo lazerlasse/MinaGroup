@@ -1,4 +1,6 @@
-﻿using MinaGroup.Backend.Models;
+﻿using MinaGroup.Backend.Helpers;
+using MinaGroup.Backend.Models;
+using MinaGroup.Backend.Services.Interfaces;
 using QuestPDF.Fluent;
 using QuestPDF.Helpers;
 using QuestPDF.Infrastructure;
@@ -7,6 +9,13 @@ namespace MinaGroup.Backend.Services
 {
     public class SelfEvaluationPdfService
     {
+        private readonly ICryptoService _cryptoService;
+
+        public SelfEvaluationPdfService(ICryptoService cryptoService)
+        {
+            _cryptoService = cryptoService;
+        }
+
         public byte[] GeneratePdf(SelfEvaluation evaluation)
         {
             QuestPDF.Settings.License = LicenseType.Community;
@@ -51,7 +60,7 @@ namespace MinaGroup.Backend.Services
                             col.Item().Text("Borger").Bold().FontSize(14);
                             col.Item().PaddingBottom(5).LineHorizontal(1).LineColor(Colors.Grey.Lighten2);
 
-                            AddField("CPR Nr.", evaluation.User.PersonNumberCPR);
+                            AddField("CPR Nr.", CprHelper.GetFullCpr(evaluation.User, _cryptoService));
                             AddField("Navn", evaluation.User.FullName);
                             col.Item().PaddingBottom(5);
 

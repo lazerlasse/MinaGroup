@@ -6,6 +6,7 @@ using Microsoft.AspNetCore.Mvc.Rendering;
 using Microsoft.EntityFrameworkCore;
 using MinaGroup.Backend.Data;
 using MinaGroup.Backend.Enums;
+using MinaGroup.Backend.Helpers;
 using MinaGroup.Backend.Models;
 using MinaGroup.Backend.Services;
 using QuestPDF.Fluent;

@@ -1,5 +1,6 @@
 ﻿using MinaGroup.Backend.Models;
 using MinaGroup.Backend.Services.Interfaces;
+using System.Linq;
 
 namespace MinaGroup.Backend.Helpers
 {
@@ -13,25 +14,52 @@ namespace MinaGroup.Backend.Helpers
             if (string.IsNullOrWhiteSpace(cpr))
                 return string.Empty;
 
-            var digits = new string(cpr.Where(char.IsDigit).ToArray());
-            return digits;
+            return new string(cpr.Where(char.IsDigit).ToArray());
         }
 
         /// <summary>
-        /// Returnerer fuldt dekrypteret CPR fra AppUser. 
-        /// Brug denne KUN på stærkt beskyttede admin-views.
+        /// Returnerer fuldt dekrypteret CPR fra AppUser.
+        /// Bruges på stærkt beskyttede admin-views.
         /// </summary>
-        public static string? GetDecryptedCpr(AppUser user, ICryptoService crypto)
+        private static string? GetDecryptedCpr(AppUser user, ICryptoService crypto)
         {
             if (user == null || string.IsNullOrWhiteSpace(user.EncryptedPersonNumber))
                 return null;
 
-            return crypto.Unprotect(user.EncryptedPersonNumber);
+            try
+            {
+                return crypto.Unprotect(user.EncryptedPersonNumber);
+            }
+            catch
+            {
+                return "[Fejl ved dekryptering]";
+            }
         }
 
         /// <summary>
-        /// Returnerer maskeret CPR i formatet ddMMyy-xxxx.
-        /// (Dvs. første 6 cifre som fødselsdato, sidste 4 skjult som xxxx)
+        /// Returnerer CPR i standardformat ddMMyy-xxxx
+        /// efter dekryptering og normalisering.
+        /// </summary>
+        public static string? GetFullCpr(AppUser user, ICryptoService crypto)
+        {
+            var decrypted = GetDecryptedCpr(user, crypto);
+            if (string.IsNullOrWhiteSpace(decrypted))
+                return null;
+
+            var digits = NormalizeCpr(decrypted);
+            if (digits.Length != 10)
+                return decrypted; // fallback: vis raw, men det burde aldrig ske
+
+            var first6 = digits.Substring(0, 6);
+            var last4 = digits.Substring(6, 4);
+
+            return $"{first6}-{last4}";
+        }
+
+        /// <summary>
+        /// Returnerer maskeret CPR i formatet ddMMyy-xxxx
+        /// (Første 6 cifre synlige, sidste 4 skjules).
+        /// Bruges på selvevalueringer og andre medarbejder-views.
         /// </summary>
         public static string GetMaskedCpr(AppUser user, ICryptoService crypto)
         {
@@ -41,7 +69,6 @@ namespace MinaGroup.Backend.Helpers
 
             var digits = NormalizeCpr(decrypted);
 
-            // Forventer 10 cifre, men vi er defensive
             if (digits.Length < 6)
                 return string.Empty;
 

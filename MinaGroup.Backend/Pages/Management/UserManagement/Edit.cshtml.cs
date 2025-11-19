@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
 using MinaGroup.Backend.Enums;
+using MinaGroup.Backend.Helpers;              // ✅ CPR-helper
 using MinaGroup.Backend.Models;
 using MinaGroup.Backend.Services.Interfaces;
 using System.ComponentModel.DataAnnotations;
@@ -14,12 +15,12 @@ namespace MinaGroup.Backend.Pages.Management.UserManagement
     {
         private readonly UserManager<AppUser> _userManager;
         private readonly RoleManager<IdentityRole> _roleManager;
-        private readonly ICryptoService _cryptoService; // ✅ Kryptering
+        private readonly ICryptoService _cryptoService;
 
         public EditModel(
             UserManager<AppUser> userManager,
             RoleManager<IdentityRole> roleManager,
-            ICryptoService cryptoService) // ✅ DI
+            ICryptoService cryptoService)
         {
             _userManager = userManager ?? throw new ArgumentNullException(nameof(userManager));
             _roleManager = roleManager ?? throw new ArgumentNullException(nameof(roleManager));
@@ -79,18 +80,13 @@ namespace MinaGroup.Backend.Pages.Management.UserManagement
 
             var userRoles = await _userManager.GetRolesAsync(user);
 
-            // ✅ Dekrypter CPR
-            string? decryptedCpr = null;
-            if (!string.IsNullOrEmpty(user.EncryptedPersonNumber))
-            {
-                try { decryptedCpr = _cryptoService.Unprotect(user.EncryptedPersonNumber); }
-                catch { decryptedCpr = "[Fejl ved dekryptering]"; }
-            }
+            // ✅ Brug CPR-helper til at hente fuldt, formatteret CPR (ddMMyy-xxxx)
+            var fullCpr = CprHelper.GetFullCpr(user, _cryptoService);
 
             Input = new InputModel
             {
                 Id = user.Id,
-                PersonNumberCPR = decryptedCpr,
+                PersonNumberCPR = fullCpr,
                 Email = user.Email,
                 FirstName = user.FirstName,
                 LastName = user.LastName,
@@ -125,7 +121,7 @@ namespace MinaGroup.Backend.Pages.Management.UserManagement
             if (user == null)
                 return NotFound($"Brugeren med ID '{Input.Id}' blev ikke fundet.");
 
-            // ✅ Krypter CPR
+            // ✅ Krypter CPR (CPR-helper bruges på læsesiden, her gemmer vi bare sikkert)
             if (!string.IsNullOrWhiteSpace(Input.PersonNumberCPR))
             {
                 try

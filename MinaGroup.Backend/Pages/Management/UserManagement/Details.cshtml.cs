@@ -4,7 +4,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
 using MinaGroup.Backend.Enums;
 using MinaGroup.Backend.Models;
-using MinaGroup.Backend.Services; // ✅ Tilføjet til ICryptoService
+using MinaGroup.Backend.Helpers;
 using MinaGroup.Backend.Services.Interfaces;
 using System.ComponentModel.DataAnnotations;
 
@@ -14,7 +14,7 @@ namespace MinaGroup.Backend.Pages.Management.UserManagement
     public class DetailsModel : PageModel
     {
         private readonly UserManager<AppUser> _userManager;
-        private readonly ICryptoService _cryptoService; // ✅ Kryptering
+        private readonly ICryptoService _cryptoService;
 
         public DetailsModel(UserManager<AppUser> userManager, ICryptoService cryptoService)
         {
@@ -32,7 +32,7 @@ namespace MinaGroup.Backend.Pages.Management.UserManagement
             public string LastName { get; set; } = string.Empty;
             public string? PhoneNumber { get; set; } = string.Empty;
 
-            // ✅ CPR vises dekrypteret i UI
+            // ✅ Fuldt CPR til intern visning i admin
             public string? PersonNumberCPR { get; set; } = string.Empty;
 
             public DateTime? JobStartDate { get; set; }
@@ -42,7 +42,7 @@ namespace MinaGroup.Backend.Pages.Management.UserManagement
             // Flags enum
             public WeekDays? Weekdays { get; set; }
 
-            // Read-only property til UI visning
+            // Læsevenlig ugeliste til UI
             public List<string> WeekdaysList => Weekdays?.ToString().Split(", ").ToList() ?? [];
         }
 
@@ -59,19 +59,8 @@ namespace MinaGroup.Backend.Pages.Management.UserManagement
 
                 var roles = await _userManager.GetRolesAsync(user);
 
-                // ✅ Dekrypter CPR (håndtering af fejl og null)
-                string? decryptedCpr = null;
-                if (!string.IsNullOrEmpty(user.EncryptedPersonNumber))
-                {
-                    try
-                    {
-                        decryptedCpr = _cryptoService.Unprotect(user.EncryptedPersonNumber);
-                    }
-                    catch
-                    {
-                        decryptedCpr = "[Fejl ved dekryptering]";
-                    }
-                }
+                // ✅ Hent fuldt CPR via fælles helper
+                var fullCpr = CprHelper.GetFullCpr(user, _cryptoService);
 
                 User = new UserViewModel
                 {
@@ -80,7 +69,7 @@ namespace MinaGroup.Backend.Pages.Management.UserManagement
                     FirstName = user.FirstName,
                     LastName = user.LastName,
                     PhoneNumber = user.PhoneNumber,
-                    PersonNumberCPR = decryptedCpr,
+                    PersonNumberCPR = fullCpr,
                     JobStartDate = user.JobStartDate,
                     JobEndDate = user.JobEndDate,
                     Roles = roles,
