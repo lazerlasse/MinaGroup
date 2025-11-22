@@ -4,6 +4,7 @@ using MinaGroup.Backend.Services.Interfaces;
 using QuestPDF.Fluent;
 using QuestPDF.Helpers;
 using QuestPDF.Infrastructure;
+using System.Globalization;
 
 namespace MinaGroup.Backend.Services
 {
@@ -31,11 +32,21 @@ namespace MinaGroup.Backend.Services
 
                     // Header
                     page.Header()
-                        .Text($"Selvevaluering - {evaluation.User.FullName}")
-                        .SemiBold()
-                        .FontSize(18)
-                        .FontColor(Colors.Blue.Medium)
-                        .AlignCenter();
+                        .Column(col =>
+                        {
+                            col.Item().Text($"Selvevaluering - {evaluation.User.FullName}")
+                            .SemiBold()
+                            .FontSize(18)
+                            .FontColor(Colors.Blue.Medium)
+                            .AlignCenter();
+
+                            col.Item().Text(evaluation.EvaluationDate.ToString("D", CultureInfo.CreateSpecificCulture("da-DK")))
+                            .SemiBold()
+                            .FontSize(12)
+                            .FontColor(Colors.Blue.Medium)
+                            .AlignCenter();
+                        });
+
 
                     // Content
                     page.Content()
@@ -46,7 +57,7 @@ namespace MinaGroup.Backend.Services
                             {
                                 col.Item().Row(row =>
                                 {
-                                    row.RelativeItem(3).Text(label).Bold();
+                                    row.RelativeItem(3).Text(label).SemiBold();
                                     row.RelativeItem(5).Text(string.IsNullOrWhiteSpace(value) ? "-" : value);
                                 });
                             }
@@ -57,31 +68,65 @@ namespace MinaGroup.Backend.Services
                             }
 
                             // Sektion: Personlige oplysninger
-                            col.Item().Text("Borger").Bold().FontSize(14);
+                            col.Item().Text("Borger").SemiBold().FontSize(12);
                             col.Item().PaddingBottom(5).LineHorizontal(1).LineColor(Colors.Grey.Lighten2);
 
                             AddField("CPR Nr.", CprHelper.GetFullCpr(evaluation.User, _cryptoService));
                             AddField("Navn", evaluation.User.FullName);
                             col.Item().PaddingBottom(5);
 
-                            // Sektion: Mødetid og arbejdstid
-                            col.Item().Text("Arbejdstid og sygdom").Bold().FontSize(14);
+
+                            // Sektion: Sygdom
+                            col.Item().Text("Sygdom").Bold().FontSize(12);
                             col.Item().PaddingBottom(5).LineHorizontal(1).LineColor(Colors.Grey.Lighten2);
 
                             AddCheckboxField("Sygemeldt", evaluation.IsSick);
+                            AddField("Årsag", evaluation.SickReason);
+                            
+                            col.Item().PaddingBottom(5);
+
+
+                            // Sektion: Udeblevet
+                            col.Item().Text("Udeblevet").SemiBold().FontSize(12);
+                            col.Item().PaddingBottom(5).LineHorizontal(1).LineColor(Colors.Grey.Lighten2);
+
+                            AddCheckboxField("Udeblevet", evaluation.IsNoShow);
+                            AddField("Årsag", evaluation.NoShowReason);
+
+                            col.Item().PaddingBottom(5);
+
+
+                            // Sektion: Fri/andet.
+                            col.Item().Text("Ferie/fri").SemiBold().FontSize(12);
+                            col.Item().PaddingBottom(5).LineHorizontal(1).LineColor(Colors.Grey.Lighten2);
+
+                            AddCheckboxField("Ferie og fri", evaluation.IsOffWork);
+                            AddField("Årsag", evaluation.OffWorkReason);
+
+                            col.Item().PaddingBottom(5);
+
+
+                            // Sektion: Mødetid og pause
+                            col.Item().Text("Mødetid og Pause").SemiBold().FontSize(12);
+                            col.Item().PaddingBottom(5).LineHorizontal(1).LineColor(Colors.Grey.Lighten2);
+
                             AddField("Mødetid", evaluation.ArrivalTime?.ToString(@"hh\:mm"));
                             AddField("Gik hjem", evaluation.DepartureTime?.ToString(@"hh\:mm"));
                             AddField("Afholdt pause", evaluation.BreakDuration?.ToString(@"hh\:mm"));
-                            AddField("Arbejdstid", evaluation.TotalHours?.ToString(@"hh\:mm"));
+                            AddField("Samlet arbejdstid", evaluation.TotalHours?.ToString(@"hh\:mm"));
                             AddField("Kom borger til tiden", evaluation.ArrivalStatus);
+                            
                             col.Item().PaddingBottom(5);
+
 
                             // Sektion: Samarbejde og hjælp
                             col.Item().Text("Samarbejde").Bold().FontSize(14);
                             col.Item().PaddingBottom(5).LineHorizontal(1).LineColor(Colors.Grey.Lighten2);
 
                             AddField("Samarbejde", evaluation.Collaboration);
+                            
                             col.Item().PaddingBottom(5);
+
 
                             // Sektion: Helbred og hjælpemidler
                             col.Item().Text("Helbred og hjælpemidler").Bold().FontSize(14);
@@ -100,6 +145,7 @@ namespace MinaGroup.Backend.Services
 
                             col.Item().PaddingBottom(5);
 
+
                             // Sektion: Arbejdsopgaver
                             col.Item().Text("Arbejdsopgaver").Bold().FontSize(14);
                             col.Item().PaddingBottom(5).LineHorizontal(1).LineColor(Colors.Grey.Lighten2);
@@ -111,15 +157,18 @@ namespace MinaGroup.Backend.Services
 
                             col.Item().PaddingBottom(5);
 
+
                             // Sektion: Aftaler
                             col.Item().Text("Aftaler").Bold().FontSize(14);
                             col.Item().PaddingBottom(5).LineHorizontal(1).LineColor(Colors.Grey.Lighten2);
 
                             AddField("Aftaler til næste gang", evaluation.NextMeetingNotes);
+                            
                             col.Item().PaddingBottom(5);
 
+
                             // Sektion: Kommentarer
-                            col.Item().Text("Kommentarer").Bold().FontSize(14);
+                            col.Item().Text("Kommentarer/Bemærkninger").Bold().FontSize(14);
                             col.Item().PaddingBottom(5).LineHorizontal(1).LineColor(Colors.Grey.Lighten2);
 
                             AddField("Kommentar fra borger", evaluation.CommentFromUser);
@@ -129,7 +178,7 @@ namespace MinaGroup.Backend.Services
                     // Footer
                     page.Footer()
                         .AlignCenter()
-                        .Text(x => x.Span("MinaGroup Backend").FontSize(9).FontColor(Colors.Grey.Darken2));
+                        .Text(x => x.Span("Mina Group ApS - Bag Stadion 10, 4220 Korsør.").FontSize(8).FontColor(Colors.Grey.Darken2));
                 });
             }).GeneratePdf();
         }

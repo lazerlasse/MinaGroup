@@ -1,0 +1,91 @@
+﻿@page
+@model MinaGroup.Backend.Pages.Management.ServiceManagement.GoogleDriveServiceModel
+@{
+    ViewData["Title"] = "Google Drive Opsætning";
+}
+
+<h1 class="text-center display-4 fw-bold text-primary mb-4">@ViewData["Title"]</h1>
+<hr />
+
+<div class="row justify-content-center">
+    <div class="col-md-8">
+        <div class="p-4 border rounded shadow-sm bg-light">
+
+            <form method="post" asp-page-handler="Save">
+                <div asp-validation-summary="ModelOnly" class="text-danger mb-3"></div>
+
+                <div class="form-check form-switch mb-3">
+                    <input asp-for="Input.IsEnabled" class="form-check-input" type="checkbox" />
+                    <label asp-for="Input.IsEnabled" class="form-check-label fw-bold"></label>
+                </div>
+
+                <div class="mb-3">
+                    <label asp-for="Input.RootFolderId" class="form-label fw-bold"></label>
+                    <input asp-for="Input.RootFolderId" class="form-control" />
+                    <small class="text-muted">
+                        ID fra Google Drive URL, fx:<br />
+                        <code>https://drive.google.com/drive/folders/<strong>HER-ER-ID'ET</strong></code>
+                    </small>
+                </div>
+
+                <hr />
+
+                <h5 class="fw-bold">OAuth klient-oplysninger</h5>
+
+                <div class="mb-3">
+                    <label asp-for="Input.ClientId" class="form-label fw-bold">Client ID</label>
+                    <input asp-for="Input.ClientId" class="form-control" />
+                    <small class="text-muted">Kopiér fra Google Cloud Console → OAuth 2.0 Client ID.</small>
+                </div>
+
+                <div class="mb-3">
+                    <label asp-for="Input.ClientSecret" class="form-label fw-bold">Client Secret</label>
+                    <input asp-for="Input.ClientSecret" class="form-control" />
+                    <small class="text-muted">
+                        Efter første gemning vises secret ikke igen. Udfyld kun hvis du vil ændre den.
+                    </small>
+                </div>
+
+                <div class="d-flex justify-content-between">
+                    <a asp-page="/Management/Index" class="btn btn-outline-secondary">Tilbage</a>
+                    <button type="submit" class="btn btn-outline-primary fw-bold">Gem opsætning</button>
+                </div>
+            </form>
+
+            <hr />
+
+            <h5 class="fw-bold">Google Drive forbindelse</h5>
+
+            <p>
+                @if (Model.Input.HasRefreshToken && !string.IsNullOrWhiteSpace(Model.Input.ConnectedAccountEmail))
+                {
+                    <span class="badge bg-success">Forbundet</span>
+                    <span class="ms-2">(@Model.Input.ConnectedAccountEmail)</span>
+                }
+                else
+                {
+                    <span class="badge bg-secondary">Ikke forbundet</span>
+                }
+            </p>
+
+            <form method="post" asp-page-handler="Connect" class="d-inline">
+                <button type="submit" class="btn btn-primary" @(Model.Input.ClientId is null ? "disabled" : null)>
+                    Forbind til Google Drive
+                </button>
+            </form>
+
+            @if (Model.Input.HasRefreshToken)
+            {
+                <form method="post" asp-page-handler="Disconnect" class="d-inline ms-2">
+                    <button type="submit" class="btn btn-outline-danger">
+                        Fjern forbindelse
+                    </button>
+                </form>
+            }
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+}

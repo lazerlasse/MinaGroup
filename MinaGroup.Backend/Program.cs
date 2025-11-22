@@ -172,12 +172,15 @@ builder.Services.Configure<CookiePolicyOptions>(options =>
     options.Secure = CookieSecurePolicy.Always;
 });
 
-// ---------- PDF Service ----------
+// ---------- PDF Service ---------- //
 builder.Services.AddScoped<SelfEvaluationPdfService>();
+
+// ---------- Google Drive Service ---------- //
+builder.Services.AddScoped<IGoogleDriveService, GoogleDriveService>();
 
 var app = builder.Build();
 
-// ---------- Migration + seeding ----------
+// ---------- Migration + seeding ---------- //
 using (var scope = app.Services.CreateScope())
 {
     var services = scope.ServiceProvider;

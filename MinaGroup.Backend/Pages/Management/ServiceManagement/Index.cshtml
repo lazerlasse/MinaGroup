@@ -1,0 +1,96 @@
+﻿@page
+@model MinaGroup.Backend.Pages.Management.ServiceManagement.IndexModel
+
+@{
+    ViewData["Title"] = "Servicestyring & Integrationer";
+}
+
+<div class="container mt-5">
+    <h1 class="text-center display-4 mb-2 fw-bold text-primary">Servicestyring</h1>
+    <p class="text-center fs-5 text-muted mb-5">
+        Her kan du administrere tekniske integrationer og baggrundsservices, som fx automatisk upload af PDF-filer til Google Drive.
+    </p>
+
+    <hr />
+
+    <!-- Integrationer & services -->
+    <div class="mb-5">
+        <h3 class="mb-3 text-secondary">Integrationer & baggrundsservices</h3>
+        <div class="row g-4">
+
+            <!-- Google Drive integration -->
+            <div class="col-md-6 col-lg-4">
+                <div class="card shadow-sm border-0 h-100">
+                    <div class="card-body d-flex flex-column">
+                        <div class="d-flex justify-content-between align-items-start mb-2">
+                            <h5 class="card-title text-primary fw-bold mb-0">
+                                Google Drive – PDF upload
+                            </h5>
+
+                            @if (Model.HasGoogleDriveConfig)
+                            {
+                                if (Model.IsGoogleDriveEnabled && Model.HasRefreshToken)
+                                {
+                                    <span class="badge bg-success ms-2">Aktiv</span>
+                                }
+                                else if (Model.IsGoogleDriveEnabled && !Model.HasRefreshToken)
+                                {
+                                    <span class="badge bg-warning text-dark ms-2">Mangler forbindelse</span>
+                                }
+                                else
+                                {
+                                    <span class="badge bg-secondary ms-2">Deaktiveret</span>
+                                }
+                            }
+                            else
+                            {
+                                <span class="badge bg-secondary ms-2">Ikke konfigureret</span>
+                            }
+                        </div>
+
+                        <p class="card-text text-muted flex-grow-1">
+                            Automatisk upload af genererede selvevalueringsskemaer (PDF) til Google Drive,
+                            organiseret i mapper pr. borger.
+                        </p>
+
+                        @if (!string.IsNullOrWhiteSpace(Model.GoogleDriveAccountEmail))
+                        {
+                            <p class="small text-muted mb-2">
+                                Forbundet konto: <strong>@Model.GoogleDriveAccountEmail</strong>
+                            </p>
+                        }
+
+                        <a asp-page="/Management/ServiceManagement/GoogleDriveService"
+                           class="btn btn-primary mt-auto">
+                            Konfigurer Google Drive
+                        </a>
+                    </div>
+                </div>
+            </div>
+
+            @* Her kan du senere tilføje flere service-kort *@
+            @* 
+            <div class="col-md-6 col-lg-4">
+                <div class="card shadow-sm border-0 h-100">
+                    <div class="card-body d-flex flex-column">
+                        <h5 class="card-title text-primary fw-bold">En anden service</h5>
+                        <p class="card-text text-muted flex-grow-1">
+                            Beskrivelse af en kommende integration eller baggrundsservice.
+                        </p>
+                        <a asp-page="/Management/ServiceManagement/SomeOtherService" class="btn btn-outline-primary mt-auto">
+                            Konfigurer
+                        </a>
+                    </div>
+                </div>
+            </div>
+            *@
+
+        </div>
+    </div>
+
+    <div class="mb-3">
+        <a asp-page="/Management/Index" class="btn btn-outline-secondary">
+            <i class="bi bi-arrow-left-circle"></i> Tilbage til administrationspanel
+        </a>
+    </div>
+</div>

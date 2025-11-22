@@ -10,6 +10,7 @@ namespace MinaGroup.Backend.Data
 
         public DbSet<SelfEvaluation> SelfEvaluations { get; set; }
         public DbSet<TaskOption> TaskOptions { get; set; }
+        public DbSet<GoogleDriveConfig> GoogleDriveConfigs { get; set; } = default!;
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
