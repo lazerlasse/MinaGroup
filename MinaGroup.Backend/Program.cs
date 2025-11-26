@@ -178,6 +178,10 @@ builder.Services.AddScoped<SelfEvaluationPdfService>();
 // ---------- Google Drive Service ---------- //
 builder.Services.AddScoped<IGoogleDriveService, GoogleDriveService>();
 
+// Organization Services.
+builder.Services.AddHttpContextAccessor();
+builder.Services.AddScoped<IOrganizationResolver, OrganizationResolver>();
+
 var app = builder.Build();
 
 // ---------- Migration + seeding ---------- //
