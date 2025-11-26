@@ -49,5 +49,10 @@ namespace MinaGroup.Backend.Models
         public WeekDays? ScheduledDays { get; set; }
 
         public ICollection<SelfEvaluation> SelfEvaluations { get; set; } = [];
+
+
+        // Organization navigation properties.
+        public int? OrganizationId { get; set; }
+        public Organization? Organization { get; set; }
     }
 }

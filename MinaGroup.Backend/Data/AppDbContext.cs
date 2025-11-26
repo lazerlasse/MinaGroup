@@ -12,6 +12,11 @@ namespace MinaGroup.Backend.Data
         public DbSet<TaskOption> TaskOptions { get; set; }
         public DbSet<GoogleDriveConfig> GoogleDriveConfigs { get; set; } = default!;
 
+        // Organization entities.
+        public DbSet<Organization> Organizations { get; set; } = default!;
+        public DbSet<IntegrationProviderSettings> IntegrationProviderSettings { get; set; } = default!;
+        public DbSet<OrganizationStorageIntegration> OrganizationStorageIntegrations { get; set; } = default!;
+
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
             base.OnModelCreating(modelBuilder);
@@ -29,6 +34,28 @@ namespace MinaGroup.Backend.Data
                 .WithMany(u => u.SelfEvaluations)
                 .HasForeignKey(se => se.UserId)
                 .OnDelete(DeleteBehavior.Cascade);
+
+            // Organization → Users
+            modelBuilder.Entity<Organization>()
+                .HasMany(o => o.Users)
+                .WithOne(u => u.Organization)
+                .HasForeignKey(u => u.OrganizationId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            // OrganizationStorageIntegration
+            modelBuilder.Entity<OrganizationStorageIntegration>()
+                .HasOne(o => o.Organization)
+                .WithMany(o => o.StorageIntegrations)
+                .HasForeignKey(o => o.OrganizationId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            modelBuilder.Entity<OrganizationStorageIntegration>()
+                .HasIndex(o => new { o.OrganizationId, o.ProviderName })
+                .IsUnique();
+
+            modelBuilder.Entity<IntegrationProviderSettings>()
+                .HasIndex(p => p.ProviderName)
+                .IsUnique();
         }
     }
 }
