@@ -3,6 +3,7 @@ using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using MinaGroup.Backend.Data;
 
@@ -11,9 +12,11 @@ using MinaGroup.Backend.Data;
 namespace MinaGroup.Backend.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    partial class AppDbContextModelSnapshot : ModelSnapshot
+    [Migration("20251127113606_AddGoogleDriveSytemSettings")]
+    partial class AddGoogleDriveSytemSettings
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -365,6 +368,7 @@ namespace MinaGroup.Backend.Migrations
                     MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("Id"));
 
                     b.Property<int>("CVRNumber")
+                        .HasMaxLength(8)
                         .HasColumnType("int");
 
                     b.Property<string>("Name")
@@ -372,17 +376,16 @@ namespace MinaGroup.Backend.Migrations
                         .HasColumnType("longtext");
 
                     b.Property<string>("OrganizationAdress")
-                        .IsRequired()
                         .HasColumnType("longtext");
 
                     b.Property<int>("PostalCode")
+                        .HasMaxLength(4)
                         .HasColumnType("int");
 
                     b.Property<string>("Slug")
                         .HasColumnType("longtext");
 
                     b.Property<string>("Town")
-                        .IsRequired()
                         .HasColumnType("longtext");
 
                     b.HasKey("Id");
@@ -538,16 +541,11 @@ namespace MinaGroup.Backend.Migrations
 
                     MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("TaskOptionId"));
 
-                    b.Property<int>("OrganizationId")
-                        .HasColumnType("int");
-
                     b.Property<string>("TaskName")
                         .IsRequired()
                         .HasColumnType("longtext");
 
                     b.HasKey("TaskOptionId");
-
-                    b.HasIndex("OrganizationId");
 
                     b.ToTable("TaskOptions");
                 });
@@ -654,17 +652,6 @@ namespace MinaGroup.Backend.Migrations
                     b.Navigation("ApprovedByUser");
 
                     b.Navigation("User");
-                });
-
-            modelBuilder.Entity("MinaGroup.Backend.Models.TaskOption", b =>
-                {
-                    b.HasOne("MinaGroup.Backend.Models.Organization", "Organization")
-                        .WithMany()
-                        .HasForeignKey("OrganizationId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("Organization");
                 });
 
             modelBuilder.Entity("SelfEvaluationTaskOption", b =>

@@ -11,27 +11,39 @@
     <strong>Advarsel!</strong> Denne handling vil <u>permanent slette</u> brugeren og kan ikke fortrydes.
 </div>
 
-<div class="card shadow-sm rounded-3 mb-4">
-    <div class="card-body">
-        <div class="mb-3">
-            <label class="form-label fw-bold">Email</label>
-            <input value="@Model.SelectedUser.Email" class="form-control" readonly />
-        </div>
+@if (Model.SelectedUser is not null)
+{
+    <div class="card shadow-sm rounded-3 mb-4">
+        <div class="card-body">
+            <div class="mb-3">
+                <label class="form-label fw-bold">Email</label>
+                <input value="@Model.SelectedUser.Email" class="form-control" readonly />
+            </div>
 
-        <div class="mb-3">
-            <label class="form-label fw-bold">Fulde navn</label>
-            <input value="@Model.SelectedUser.FullName" class="form-control" readonly />
+            <div class="mb-3">
+                <label class="form-label fw-bold">Fulde navn</label>
+                <input value="@Model.SelectedUser.FullName" class="form-control" readonly />
+            </div>
         </div>
     </div>
-</div>
 
-<form method="post">
-    <input type="hidden" asp-for="SelectedUser.Id" />
+    <form method="post">
+        <input type="hidden" name="id" value="@Model.SelectedUser.Id" />
 
+        <a asp-page="./Index" class="btn btn-outline-secondary">
+            <i class="bi bi-x-circle"></i> Annuller
+        </a>
+        <button type="submit" class="btn btn-outline-danger fw-bold me-2">
+            <i class="bi bi-trash-fill"></i> Slet
+        </button>
+    </form>
+}
+else
+{
+    <div class="alert alert-warning">
+        Brugeren kunne ikke indlæses.
+    </div>
     <a asp-page="./Index" class="btn btn-outline-secondary">
-        <i class="bi bi-x-circle"></i> Annuller
+        <i class="bi bi-arrow-left-circle"></i> Tilbage
     </a>
-    <button type="submit" class="btn btn-outline-danger fw-bold me-2">
-        <i class="bi bi-trash-fill"></i> Slet
-    </button>
-</form>
+}

@@ -2,45 +2,61 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
+using System.ComponentModel.DataAnnotations;
 using System.Threading.Tasks;
 
-namespace MinaGroup.Backend.Pages.Management.RoleManagement
+namespace MinaGroup.Backend.Pages.SystemManagement.RoleManagement
 {
     [Authorize(Roles = "SysAdmin")]
-    public class DeleteModel : PageModel
+    public class EditModel : PageModel
     {
         private readonly RoleManager<IdentityRole> _roleManager;
 
-        public DeleteModel(RoleManager<IdentityRole> roleManager)
+        public EditModel(RoleManager<IdentityRole> roleManager)
         {
             _roleManager = roleManager;
         }
 
         [BindProperty]
-        public string RoleId { get; set; } = string.Empty;
+        public InputModel Input { get; set; } = new();
 
-        public string RoleName { get; set; } = string.Empty;
+        public class InputModel
+        {
+            public string Id { get; set; } = string.Empty;
+
+            [Required(ErrorMessage = "Rolens navn er påkrævet")]
+            [Display(Name = "Rolles navn")]
+            public string Name { get; set; } = string.Empty;
+        }
 
         public async Task<IActionResult> OnGetAsync(string id)
         {
             var role = await _roleManager.FindByIdAsync(id);
             if (role == null) return NotFound();
 
-            RoleId = role.Id;
-            RoleName = role.Name ?? string.Empty;
+            Input = new InputModel
+            {
+                Id = role.Id,
+                Name = role.Name ?? string.Empty
+            };
 
             return Page();
         }
 
         public async Task<IActionResult> OnPostAsync()
         {
-            var role = await _roleManager.FindByIdAsync(RoleId);
+            if (!ModelState.IsValid)
+                return Page();
+
+            var role = await _roleManager.FindByIdAsync(Input.Id);
             if (role == null) return NotFound();
 
-            var result = await _roleManager.DeleteAsync(role);
+            role.Name = Input.Name;
+
+            var result = await _roleManager.UpdateAsync(role);
             if (result.Succeeded)
             {
-                TempData["SuccessMessage"] = "Rollen blev slettet.";
+                TempData["SuccessMessage"] = "Rollen blev opdateret.";
                 return RedirectToPage("./Index");
             }
 

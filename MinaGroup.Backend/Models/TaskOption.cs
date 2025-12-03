@@ -9,5 +9,9 @@ namespace MinaGroup.Backend.Models
 
         [Required, Display(Name = "Opgave/værksted")]
         public string TaskName { get; set; } = string.Empty;
+
+        // 🔗 Hør til én organisation
+        public int OrganizationId { get; set; }
+        public Organization Organization { get; set; } = null!;
     }
 }

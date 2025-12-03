@@ -8,14 +8,21 @@ namespace MinaGroup.Backend.Data
     {
         public AppDbContext(DbContextOptions<AppDbContext> options) : base(options) { }
 
+        // Selfevaluation and taskoption entities.
         public DbSet<SelfEvaluation> SelfEvaluations { get; set; }
         public DbSet<TaskOption> TaskOptions { get; set; }
-        public DbSet<GoogleDriveConfig> GoogleDriveConfigs { get; set; } = default!;
+
 
         // Organization entities.
         public DbSet<Organization> Organizations { get; set; } = default!;
         public DbSet<IntegrationProviderSettings> IntegrationProviderSettings { get; set; } = default!;
         public DbSet<OrganizationStorageIntegration> OrganizationStorageIntegrations { get; set; } = default!;
+        public DbSet<GoogleDriveConfig> GoogleDriveConfigs { get; set; } = default!;
+
+
+        // Global Sysadmin setting entities.
+        public DbSet<GoogleDriveSystemSetting> GoogleDriveSystemSettings { get; set; } = default!;
+
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
@@ -56,6 +63,15 @@ namespace MinaGroup.Backend.Data
             modelBuilder.Entity<IntegrationProviderSettings>()
                 .HasIndex(p => p.ProviderName)
                 .IsUnique();
+
+            // Default data for Google Drive Global Settings.
+            modelBuilder.Entity<GoogleDriveSystemSetting>().HasData(new GoogleDriveSystemSetting
+            {
+                Id = 1,
+                ClientId = string.Empty,
+                EncryptedClientSecret = string.Empty,
+                RedirectUri = string.Empty
+            });
         }
     }
 }

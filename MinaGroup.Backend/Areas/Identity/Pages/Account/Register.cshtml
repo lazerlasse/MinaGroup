@@ -1,11 +1,15 @@
 ﻿@page
-@model RegisterModel
+@model MinaGroup.Backend.Areas.Identity.Pages.Account.RegisterModel
 
 @{
     ViewData["Title"] = "Opret ny bruger";
 }
 
 <h1 class="text-center display-4 fw-bold text-primary mb-4">@ViewData["Title"]</h1>
+
+<p class="text-center text-muted mb-3">
+    Brugere oprettes automatisk i samme organisation som din egen.
+</p>
 
 <div class="row justify-content-center">
     <div class="col-md-6">
@@ -44,7 +48,7 @@
                     <span asp-validation-for="Input.PhoneNumber" class="text-danger"></span>
                 </div>
 
-                <h5 class="fw-bold mb-2">Forløb og ansættelses periode</h5>
+                <h5 class="fw-bold mb-2">Forløb og ansættelsesperiode</h5>
                 <div class="form-floating mb-3">
                     <input asp-for="Input.JobStartDate" type="date" class="form-control" />
                     <label asp-for="Input.JobStartDate">Job startdato</label>
@@ -73,7 +77,7 @@
                     }
                 </div>
 
-                <h5 class="fw-bold mb-2">Tildelte bruger roller</h5>
+                <h5 class="fw-bold mb-2">Tildelte brugerroller</h5>
                 <div class="mb-3 d-flex flex-wrap gap-3">
                     @foreach (var role in Model.AllRoles)
                     {

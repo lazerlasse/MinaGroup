@@ -1,5 +1,6 @@
-using Microsoft.AspNetCore.Authorization;
+﻿using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
 using Microsoft.EntityFrameworkCore;
 using MinaGroup.Backend.Models;
@@ -9,7 +10,7 @@ using System.Threading.Tasks;
 
 namespace MinaGroup.Backend.Pages.Management.UserManagement
 {
-    [Authorize(Roles = "Admin,SysAdmin")]
+    [Authorize(Roles = "Admin,Leder")] // 🔁 Kun Admin + Leder
     public class IndexModel : PageModel
     {
         private readonly UserManager<AppUser> _userManager;
@@ -32,18 +33,36 @@ namespace MinaGroup.Backend.Pages.Management.UserManagement
             public IList<string> Roles { get; set; } = [];
         }
 
-        public async Task OnGetAsync(string? searchString)
+        public async Task<IActionResult> OnGetAsync(string? searchString)
         {
             CurrentFilter = searchString;
 
-            var usersQuery = _userManager.Users.AsQueryable();
+            // 🔹 Find den aktuelle bruger inkl. OrganizationId
+            var currentUser = await _userManager.GetUserAsync(User);
+            if (currentUser == null)
+            {
+                return Unauthorized();
+            }
 
+            if (currentUser.OrganizationId == null)
+            {
+                // SysAdmin bør håndtere at knytte admin/leder til en org
+                TempData["ErrorMessage"] = "Din bruger er ikke tilknyttet en organisation. Kontakt systemadministrator.";
+                Users = [];
+                return Page();
+            }
+
+            // 🔹 Start med kun brugere i samme organisation
+            var usersQuery = _userManager.Users
+                .Where(u => u.OrganizationId == currentUser.OrganizationId);
+
+            // 🔹 Søgning
             if (!string.IsNullOrWhiteSpace(searchString))
             {
                 usersQuery = usersQuery.Where(u =>
-                    u.Email!.Contains(searchString) ||
-                    u.FirstName!.Contains(searchString) ||
-                    u.LastName!.Contains(searchString));
+                    (u.Email ?? "").Contains(searchString) ||
+                    (u.FirstName ?? "").Contains(searchString) ||
+                    (u.LastName ?? "").Contains(searchString));
             }
 
             var userList = await usersQuery.ToListAsync();
@@ -66,6 +85,8 @@ namespace MinaGroup.Backend.Pages.Management.UserManagement
                     Roles = roles
                 });
             }
+
+            return Page();
         }
 
         private bool CanCurrentUserSeeUser(IList<string> candidateRoles)
@@ -74,44 +95,29 @@ namespace MinaGroup.Backend.Pages.Management.UserManagement
 
             bool isSysAdmin = r.Contains("SysAdmin");
             bool isAdmin = r.Contains("Admin");
-            bool isBorger = r.Contains("Borger");
             bool isLeder = r.Contains("Leder");
+            bool isBorger = r.Contains("Borger");
 
-            // -------- SYSADMIN LOGIK --------
-            // SysAdmin m� se:
-            //  - alle med SysAdmin
-            //  - alle med Admin
-            //  - alle med Leder
-            //  - borgere, hvis de OGS� er Admin/SysAdmin/Leder
-            if (User.IsInRole("SysAdmin"))
-            {
-                if (isSysAdmin || isAdmin || isLeder)
-                    return true;
-
-                // Ren borger (kun Borger) -> skjules
-                if (isBorger && !isSysAdmin && !isAdmin && !isLeder)
-                    return false;
-
-                // Brugere uden nogen af rollerne ovenfor (meget edge-case) -> skjules
+            // 🔒 Ingen skal se SysAdmin her
+            if (isSysAdmin)
                 return false;
-            }
 
             // -------- ADMIN LOGIK --------
-            // Admin m� se:
+            // Admin må se:
             //  - Admin
-            //  - Borger
             //  - Leder
-            //  (og kombinationer med SysAdmin)
+            //  - Borger
+            //  (kun inden for egen organisation – det er håndteret i query'en)
             if (User.IsInRole("Admin"))
             {
-                if (isAdmin || isBorger || isLeder)
-                    return true;
+                return isAdmin || isLeder || isBorger;
+            }
 
-                // Ren SysAdmin (kun SysAdmin) -> skjules
-                if (isSysAdmin && !isAdmin && !isBorger && !isLeder)
-                    return false;
-
-                return false;
+            // -------- LEDER LOGIK --------
+            // Leder må kun se borgere i egen organisation
+            if (User.IsInRole("Leder"))
+            {
+                return isBorger;
             }
 
             // Andre roller har ikke adgang til brugerlisten

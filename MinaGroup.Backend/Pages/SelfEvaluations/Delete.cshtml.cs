@@ -8,7 +8,7 @@ using Microsoft.Extensions.Logging;
 using MinaGroup.Backend.Data;
 using MinaGroup.Backend.Models;
 
-namespace MinaGroup.Backend.Pages.Management.SelfEvaluations
+namespace MinaGroup.Backend.Pages.SelfEvaluations
 {
     [Authorize(Roles = "Admin")]
     public class DeleteModel : PageModel

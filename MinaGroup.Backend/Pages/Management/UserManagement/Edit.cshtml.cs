@@ -10,7 +10,8 @@ using System.ComponentModel.DataAnnotations;
 
 namespace MinaGroup.Backend.Pages.Management.UserManagement
 {
-    [Authorize(Roles = "Admin,SysAdmin")]
+    // 🔐 Denne side er nu KUN til Admin og Leder (SysAdmin bruger SystemManagement senere)
+    [Authorize(Roles = "Admin,Leder")]
     public class EditModel : PageModel
     {
         private readonly UserManager<AppUser> _userManager;
@@ -69,18 +70,69 @@ namespace MinaGroup.Backend.Pages.Management.UserManagement
             public WeekDays? ScheduledDays { get; set; }
         }
 
+        /// <summary>
+        /// Bygger den rolle-liste, der må vælges i UI afhængigt af hvem der er logget ind.
+        /// Admin: Admin + Leder + Borger
+        /// Leder: kun Borger
+        /// </summary>
+        private void PopulateRolesForCurrentUser()
+        {
+            if (User.IsInRole("Admin"))
+            {
+                AllRoles = _roleManager.Roles
+                    .Where(r => r.Name == "Admin" || r.Name == "Leder" || r.Name == "Borger")
+                    .Select(r => r.Name)
+                    .ToList();
+            }
+            else if (User.IsInRole("Leder"))
+            {
+                AllRoles = _roleManager.Roles
+                    .Where(r => r.Name == "Borger")
+                    .Select(r => r.Name)
+                    .ToList();
+            }
+            else
+            {
+                AllRoles = [];
+            }
+        }
+
         public async Task<IActionResult> OnGetAsync(string id)
         {
             if (string.IsNullOrWhiteSpace(id))
                 return NotFound("Bruger-ID ikke angivet.");
 
+            // Hent den nuværende bruger (Admin/Leder)
+            var currentUser = await _userManager.GetUserAsync(User);
+            if (currentUser == null)
+                return Unauthorized();
+
+            if (currentUser.OrganizationId == null)
+                return Forbid("Du er ikke tilknyttet en organisation.");
+
+            // Hent brugeren der skal redigeres
             var user = await _userManager.FindByIdAsync(id);
             if (user == null)
                 return NotFound($"Brugeren med ID '{id}' blev ikke fundet.");
 
+            // 🔒 Org-scope: må kun redigere brugere i samme org
+            if (user.OrganizationId != currentUser.OrganizationId)
+                return Forbid("Du har ikke adgang til at redigere denne bruger.");
+
             var userRoles = await _userManager.GetRolesAsync(user);
 
-            // ✅ Brug CPR-helper til at hente fuldt, formatteret CPR (ddMMyy-xxxx)
+            // Leder må ikke redigere Admin/Leder
+            if (User.IsInRole("Leder") &&
+                (userRoles.Contains("Admin") || userRoles.Contains("Leder") || userRoles.Contains("SysAdmin")))
+            {
+                return Forbid("Leder må kun redigere borgere i egen organisation.");
+            }
+
+            PopulateRolesForCurrentUser();
+            if (!AllRoles.Any())
+                return Forbid();
+
+            // ✅ Brug CPR-helper til fuldt, formatteret CPR (ddMMyy-xxxx)
             var fullCpr = CprHelper.GetFullCpr(user, _cryptoService);
 
             Input = new InputModel
@@ -97,31 +149,50 @@ namespace MinaGroup.Backend.Pages.Management.UserManagement
                 ScheduledDays = user.ScheduledDays
             };
 
-            // ✅ Filtrer roller afhængigt af hvem der er logget ind
-            AllRoles = _roleManager.Roles
-                .Select(r => r.Name)
-                .Where(r => User.IsInRole("SysAdmin") || r != "SysAdmin")
-                .ToList();
-
             return Page();
         }
 
         public async Task<IActionResult> OnPostAsync(List<string> SelectedRoles, List<WeekDays> SelectedDays)
         {
+            PopulateRolesForCurrentUser();
+            if (!AllRoles.Any())
+                return Forbid();
+
+            SelectedRoles ??= new List<string>();
+            SelectedDays ??= new List<WeekDays>();
+
             if (!ModelState.IsValid)
             {
-                AllRoles = _roleManager.Roles
-                    .Select(r => r.Name)
-                    .Where(r => User.IsInRole("SysAdmin") || r != "SysAdmin")
-                    .ToList();
                 return Page();
             }
 
+            // Hent den nuværende bruger (Admin/Leder)
+            var currentUser = await _userManager.GetUserAsync(User);
+            if (currentUser == null)
+                return Unauthorized();
+
+            if (currentUser.OrganizationId == null)
+                return Forbid("Du er ikke tilknyttet en organisation.");
+
+            // Hent brugeren der skal opdateres
             var user = await _userManager.FindByIdAsync(Input.Id);
             if (user == null)
                 return NotFound($"Brugeren med ID '{Input.Id}' blev ikke fundet.");
 
-            // ✅ Krypter CPR (CPR-helper bruges på læsesiden, her gemmer vi bare sikkert)
+            // 🔒 Org-scope
+            if (user.OrganizationId != currentUser.OrganizationId)
+                return Forbid("Du har ikke adgang til at redigere denne bruger.");
+
+            var currentRoles = await _userManager.GetRolesAsync(user);
+
+            // Leder må ikke redigere Admin/Leder/SysAdmin (dobbelt-tjek)
+            if (User.IsInRole("Leder") &&
+                (currentRoles.Contains("Admin") || currentRoles.Contains("Leder") || currentRoles.Contains("SysAdmin")))
+            {
+                return Forbid("Leder må kun redigere borgere i egen organisation.");
+            }
+
+            // ✅ Krypter CPR
             if (!string.IsNullOrWhiteSpace(Input.PersonNumberCPR))
             {
                 try
@@ -131,10 +202,6 @@ namespace MinaGroup.Backend.Pages.Management.UserManagement
                 catch (Exception ex)
                 {
                     ModelState.AddModelError(nameof(Input.PersonNumberCPR), $"Fejl ved kryptering: {ex.Message}");
-                    AllRoles = _roleManager.Roles
-                        .Select(r => r.Name)
-                        .Where(r => User.IsInRole("SysAdmin") || r != "SysAdmin")
-                        .ToList();
                     return Page();
                 }
             }
@@ -145,6 +212,7 @@ namespace MinaGroup.Backend.Pages.Management.UserManagement
 
             // ✅ Opdater øvrige felter
             user.Email = Input.Email;
+            user.UserName = Input.Email; // hold UserName i sync med Email
             user.FirstName = Input.FirstName;
             user.LastName = Input.LastName;
             user.PhoneNumber = Input.PhoneNumber;
@@ -156,30 +224,40 @@ namespace MinaGroup.Backend.Pages.Management.UserManagement
                 ? SelectedDays.Aggregate(WeekDays.None, (acc, d) => acc | d)
                 : WeekDays.None;
 
-            var result = await _userManager.UpdateAsync(user);
-            if (!result.Succeeded)
+            var updateResult = await _userManager.UpdateAsync(user);
+            if (!updateResult.Succeeded)
             {
-                foreach (var error in result.Errors)
+                foreach (var error in updateResult.Errors)
                     ModelState.AddModelError(string.Empty, error.Description);
 
-                AllRoles = _roleManager.Roles
-                    .Select(r => r.Name)
-                    .Where(r => User.IsInRole("SysAdmin") || r != "SysAdmin")
-                    .ToList();
                 return Page();
             }
 
-            // ✅ Roller
-            var currentRoles = await _userManager.GetRolesAsync(user);
-
-            // Admin må ikke tilføje/fjerne SysAdmin
-            if (!User.IsInRole("SysAdmin"))
+            // ✅ Rolle-håndtering:
+            // Leder → må KUN håndtere "Borger"
+            if (User.IsInRole("Leder"))
             {
-                SelectedRoles = SelectedRoles.Where(r => r != "SysAdmin").ToList();
+                SelectedRoles = SelectedRoles
+                    .Where(r => r == "Borger")
+                    .ToList();
+            }
+            // Admin → må kun Admin/Leder/Borger (ingen SysAdmin)
+            else if (User.IsInRole("Admin"))
+            {
+                SelectedRoles = SelectedRoles
+                    .Where(r => r == "Admin" || r == "Leder" || r == "Borger")
+                    .ToList();
             }
 
-            var rolesToAdd = SelectedRoles.Except(currentRoles);
-            var rolesToRemove = currentRoles.Except(SelectedRoles);
+            // Sørg for, at vi ikke prøver at fjerne roller, som leder ikke må røre
+            var allowedRolesToWorkWith = new HashSet<string>(AllRoles.Where(r => r != null)!);
+
+            var filteredCurrentRoles = currentRoles
+                .Where(r => allowedRolesToWorkWith.Contains(r))
+                .ToList();
+
+            var rolesToAdd = SelectedRoles.Except(filteredCurrentRoles).ToList();
+            var rolesToRemove = filteredCurrentRoles.Except(SelectedRoles).ToList();
 
             if (rolesToAdd.Any())
                 await _userManager.AddToRolesAsync(user, rolesToAdd);

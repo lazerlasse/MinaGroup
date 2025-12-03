@@ -1,41 +1,49 @@
 ﻿using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
-using Microsoft.AspNetCore.Mvc.Rendering;
 using MinaGroup.Backend.Data;
 using MinaGroup.Backend.Models;
-using System;
-using System.Collections.Generic;
-using System.Linq;
 using System.Threading.Tasks;
 
 namespace MinaGroup.Backend.Pages.Management.TaskOptions
 {
-    [Authorize(Roles = "Admin,SysAdmin,Leder")]
+    [Authorize(Roles = "Admin,Leder")]
     public class CreateModel : PageModel
     {
-        private readonly MinaGroup.Backend.Data.AppDbContext _context;
+        private readonly AppDbContext _context;
+        private readonly UserManager<AppUser> _userManager;
 
-        public CreateModel(MinaGroup.Backend.Data.AppDbContext context)
+        public CreateModel(AppDbContext context, UserManager<AppUser> userManager)
         {
             _context = context;
+            _userManager = userManager;
         }
+
+        [BindProperty]
+        public TaskOption TaskOption { get; set; } = new TaskOption();
 
         public IActionResult OnGet()
         {
             return Page();
         }
 
-        [BindProperty]
-        public TaskOption TaskOption { get; set; } = default!;
-
-        // For more information, see https://aka.ms/RazorPagesCRUD.
         public async Task<IActionResult> OnPostAsync()
         {
             if (!ModelState.IsValid)
             {
                 return Page();
             }
+
+            var currentUser = await _userManager.GetUserAsync(User);
+            if (currentUser == null)
+                return Unauthorized();
+
+            if (currentUser.OrganizationId == null)
+                return Forbid();
+
+            // 🔒 Force org-scope uanset hvad der kommer fra klienten
+            TaskOption.OrganizationId = currentUser.OrganizationId.Value;
 
             _context.TaskOptions.Add(TaskOption);
             await _context.SaveChangesAsync();

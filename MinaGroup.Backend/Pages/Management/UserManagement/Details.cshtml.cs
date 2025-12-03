@@ -6,11 +6,11 @@ using MinaGroup.Backend.Enums;
 using MinaGroup.Backend.Models;
 using MinaGroup.Backend.Helpers;
 using MinaGroup.Backend.Services.Interfaces;
-using System.ComponentModel.DataAnnotations;
 
 namespace MinaGroup.Backend.Pages.Management.UserManagement
 {
-    [Authorize(Roles = "Admin,SysAdmin")]
+    // Kun Admin & Leder – SysAdmin får eget panel
+    [Authorize(Roles = "Admin,Leder")]
     public class DetailsModel : PageModel
     {
         private readonly UserManager<AppUser> _userManager;
@@ -22,7 +22,8 @@ namespace MinaGroup.Backend.Pages.Management.UserManagement
             _cryptoService = cryptoService ?? throw new ArgumentNullException(nameof(cryptoService));
         }
 
-        public new UserViewModel User { get; set; } = new UserViewModel();
+        // ✅ Omdøbt så vi ikke konflikter med PageModel.User (ClaimsPrincipal)
+        public UserViewModel UserView { get; set; } = new UserViewModel();
 
         public class UserViewModel
         {
@@ -32,7 +33,7 @@ namespace MinaGroup.Backend.Pages.Management.UserManagement
             public string LastName { get; set; } = string.Empty;
             public string? PhoneNumber { get; set; } = string.Empty;
 
-            // ✅ Fuldt CPR til intern visning i admin
+            // Fuldt CPR til intern visning i admin
             public string? PersonNumberCPR { get; set; } = string.Empty;
 
             public DateTime? JobStartDate { get; set; }
@@ -53,16 +54,36 @@ namespace MinaGroup.Backend.Pages.Management.UserManagement
 
             try
             {
+                // 🔐 Nuværende bruger (Admin/Leder)
+                var currentUser = await _userManager.GetUserAsync(User);
+                if (currentUser == null)
+                    return Unauthorized();
+
+                if (currentUser.OrganizationId == null)
+                    return Forbid();
+
+                // 🔐 Bruger der skal vises
                 var user = await _userManager.FindByIdAsync(id);
                 if (user == null)
                     return NotFound($"Brugeren med ID '{id}' blev ikke fundet.");
 
+                // Org-scope: kun samme organisation
+                if (user.OrganizationId != currentUser.OrganizationId)
+                    return Forbid();
+
                 var roles = await _userManager.GetRolesAsync(user);
 
-                // ✅ Hent fuldt CPR via fælles helper
+                // Leder må ikke se Admin/Leder/SysAdmin
+                if (User.IsInRole("Leder") &&
+                    (roles.Contains("Admin") || roles.Contains("Leder") || roles.Contains("SysAdmin")))
+                {
+                    return Forbid();
+                }
+
+                // CPR via helper
                 var fullCpr = CprHelper.GetFullCpr(user, _cryptoService);
 
-                User = new UserViewModel
+                UserView = new UserViewModel
                 {
                     Id = user.Id,
                     Email = user.Email,

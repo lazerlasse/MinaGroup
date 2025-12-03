@@ -1,0 +1,65 @@
+﻿@page
+@model MinaGroup.Backend.Pages.SystemManagement.IndexModel
+@{
+    ViewData["Title"] = "Systemadministration";
+}
+
+<div class="container mt-5">
+    <h1 class="text-center display-4 mb-2 fw-bold text-primary">Systemadministration</h1>
+    <p class="text-center fs-5 text-muted mb-5">
+        Global konfiguration af systemet. Kun tilgængelig for systemadministrator.
+    </p>
+
+    <hr />
+
+    <div class="mb-5">
+        <h3 class="mb-3 text-secondary">Systemindstillinger</h3>
+        <div class="row g-4">
+            <div class="col-md-6">
+                <div class="card shadow-sm border-0 h-100">
+                    <div class="card-body d-flex flex-column">
+                        <h5 class="card-title text-primary fw-bold">Google Drive klient</h5>
+                        <p class="card-text text-muted flex-grow-1">
+                            Opsæt global OAuth klient til Google Drive (Client ID og Client Secret),
+                            som bruges af alle organisationer i systemet.
+                        </p>
+                        <a asp-page="/SystemManagement/GoogleDriveSettings" class="btn btn-primary mt-auto">
+                            Konfigurer
+                        </a>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-md-6 col-lg-4">
+                <div class="card shadow-sm border-0 h-100">
+                    <div class="card-body d-flex flex-column">
+                        <h5 class="card-title text-primary fw-bold">Admin brugere</h5>
+                        <p class="card-text text-muted flex-grow-1">
+                            Opret og administrer admin-brugere og tildel dem til organisationer.
+                        </p>
+                        <a asp-page="/SystemManagement/AdminUsers/Index" class="btn btn-outline-primary mt-auto">
+                            Administrer
+                        </a>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-md-6 col-lg-6">
+                <div class="card shadow-sm border-0 h-100">
+                    <div class="card-body d-flex flex-column">
+                        <h5 class="card-title text-primary fw-bold">Administrer Brugerroller</h5>
+                        <p class="card-text text-muted flex-grow-1">
+                            Tildel roller og rettigheder til brugere for at styre adgangsniveauer.
+                        </p>
+                        <a asp-page="/SystemManagement/RoleManagement/Index" class="btn btn-primary mt-auto">
+                            Administrer
+                        </a>
+                    </div>
+                </div>
+            </div>
+
+            @* Fremtidige globale indstillinger kan komme her *@
+            @* <div class="col-md-6"> ... anden card ... </div> *@
+        </div>
+    </div>
+</div>

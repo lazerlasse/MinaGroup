@@ -15,47 +15,47 @@
 
             <div class="mb-3">
                 <label class="form-label fw-bold">CPR-nummer</label>
-                <input value="@Model.User.PersonNumberCPR" disabled class="form-control" />
+                <input value="@Model.UserView.PersonNumberCPR" disabled class="form-control" />
             </div>
 
             <div class="mb-3">
                 <label class="form-label fw-bold">Fornavn</label>
-                <input value="@Model.User.FirstName" disabled class="form-control" />
+                <input value="@Model.UserView.FirstName" disabled class="form-control" />
             </div>
 
             <div class="mb-3">
                 <label class="form-label fw-bold">Efternavn</label>
-                <input value="@Model.User.LastName" disabled class="form-control" />
+                <input value="@Model.UserView.LastName" disabled class="form-control" />
             </div>
 
             <div class="mb-3">
                 <label class="form-label fw-bold">Email</label>
-                <input value="@Model.User.Email" disabled class="form-control" />
+                <input value="@Model.UserView.Email" disabled class="form-control" />
             </div>
 
             <div class="mb-3">
                 <label class="form-label fw-bold">Telefon</label>
-                <input value="@Model.User.PhoneNumber" disabled class="form-control" />
+                <input value="@Model.UserView.PhoneNumber" disabled class="form-control" />
             </div>
 
             <div class="mb-3">
                 <label class="form-label fw-bold">Startdato</label>
-                <input value="@Model.User.JobStartDate?.ToString("dd.MM.yyyy")" disabled class="form-control" />
+                <input value="@Model.UserView.JobStartDate?.ToString("dd.MM.yyyy")" disabled class="form-control" />
             </div>
 
             <div class="mb-3">
                 <label class="form-label fw-bold">Slutdato</label>
-                <input value="@Model.User.JobEndDate?.ToString("dd.MM.yyyy")" disabled class="form-control" />
+                <input value="@Model.UserView.JobEndDate?.ToString("dd.MM.yyyy")" disabled class="form-control" />
             </div>
 
             <div class="mb-3">
                 <label class="form-label fw-bold">Brugerroller</label>
-                <input value="@string.Join(", ", Model.User.Roles)" disabled class="form-control" />
+                <input value="@string.Join(", ", Model.UserView.Roles)" disabled class="form-control" />
             </div>
 
             <div class="mb-3">
                 <label class="form-label fw-bold">Ugedage</label>
-                <input value="@string.Join(", ", Model.User.WeekdaysList)" disabled class="form-control" />
+                <input value="@string.Join(", ", Model.UserView.WeekdaysList)" disabled class="form-control" />
             </div>
 
             <div class="d-flex justify-content-between">
@@ -63,10 +63,10 @@
                     <i class="bi bi-arrow-left-circle"></i> Tilbage
                 </a>
                 <div>
-                    <a asp-page="./Edit" asp-route-id="@Model.User.Id" class="btn btn-outline-primary me-2">
+                    <a asp-page="./Edit" asp-route-id="@Model.UserView.Id" class="btn btn-outline-primary me-2">
                         <i class="bi bi-pencil-fill"></i> Rediger
                     </a>
-                    <a asp-page="./Delete" asp-route-id="@Model.User.Id" class="btn btn-outline-danger">
+                    <a asp-page="./Delete" asp-route-id="@Model.UserView.Id" class="btn btn-outline-danger">
                         <i class="bi bi-trash-fill"></i> Slet
                     </a>
                 </div>

@@ -12,7 +12,7 @@ using MinaGroup.Backend.Helpers;
 using MinaGroup.Backend.Models;
 using MinaGroup.Backend.Services.Interfaces;
 
-namespace MinaGroup.Backend.Pages.Management.SelfEvaluations
+namespace MinaGroup.Backend.Pages.SelfEvaluations
 {
     [Authorize(Roles = "Admin")]
     public class EditModel : PageModel

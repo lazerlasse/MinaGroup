@@ -1,0 +1,155 @@
+﻿@page "{id?}"
+@model MinaGroup.Backend.Pages.SystemManagement.AdminUsers.IndexModel
+
+@{
+    ViewData["Title"] = "Admin brugere";
+}
+
+<div class="container mt-5">
+    <h1 class="text-center display-4 mb-2 fw-bold text-primary">Admin brugere</h1>
+    <p class="text-center fs-5 text-muted mb-4">
+        Opret og administrer admin-brugere og knyt dem til deres organisation.
+    </p>
+
+    <hr />
+
+    <div class="row g-4">
+        <!-- Formular (venstre kolonne) -->
+        <div class="col-lg-5">
+            <div class="card shadow-sm border-0 h-100">
+                <div class="card-body">
+                    <h4 class="card-title text-primary fw-bold mb-3">
+                        @(string.IsNullOrEmpty(Model.Input.Id) ? "Opret ny admin" : "Rediger admin")
+                    </h4>
+
+                    <form method="post" asp-page-handler="@(string.IsNullOrEmpty(Model.Input.Id) ? "Create" : "Update")">
+                        <div asp-validation-summary="ModelOnly" class="text-danger mb-3"></div>
+
+                        <input type="hidden" asp-for="Input.Id" />
+
+                        <div class="mb-3">
+                            <label asp-for="Input.FirstName" class="form-label fw-bold"></label>
+                            <input asp-for="Input.FirstName" class="form-control" />
+                            <span asp-validation-for="Input.FirstName" class="text-danger"></span>
+                        </div>
+
+                        <div class="mb-3">
+                            <label asp-for="Input.LastName" class="form-label fw-bold"></label>
+                            <input asp-for="Input.LastName" class="form-control" />
+                            <span asp-validation-for="Input.LastName" class="text-danger"></span>
+                        </div>
+
+                        <div class="mb-3">
+                            <label asp-for="Input.Email" class="form-label fw-bold"></label>
+                            <input asp-for="Input.Email" class="form-control" />
+                            <span asp-validation-for="Input.Email" class="text-danger"></span>
+                        </div>
+
+                        <div class="mb-3">
+                            <label asp-for="Input.PhoneNumber" class="form-label fw-bold"></label>
+                            <input asp-for="Input.PhoneNumber" class="form-control" />
+                            <span asp-validation-for="Input.PhoneNumber" class="text-danger"></span>
+                        </div>
+
+                        <div class="mb-3">
+                            <label asp-for="Input.OrganizationId" class="form-label fw-bold"></label>
+                            <select asp-for="Input.OrganizationId"
+                                    asp-items="Model.Organizations"
+                                    class="form-select">
+                                <option value="">-- Vælg organisation --</option>
+                            </select>
+                            <span asp-validation-for="Input.OrganizationId" class="text-danger"></span>
+                        </div>
+
+                        <div class="mb-3">
+                            <label asp-for="Input.Password" class="form-label fw-bold"></label>
+                            <input asp-for="Input.Password" class="form-control" />
+                            <small class="text-muted">
+                                @if (string.IsNullOrEmpty(Model.Input.Id))
+                                {
+                                    @:Password er påkrævet ved oprettelse.
+                                }
+                                else
+                                {
+                                    @:Udfyld kun hvis du vil nulstille password.
+                                }
+                            </small>
+                            <span asp-validation-for="Input.Password" class="text-danger"></span>
+                        </div>
+
+                        <div class="d-flex justify-content-between mt-4">
+                            <a asp-page="/SystemManagement/Index" class="btn btn-outline-secondary">
+                                Tilbage
+                            </a>
+                            <button type="submit" class="btn btn-outline-primary fw-bold">
+                                @(string.IsNullOrEmpty(Model.Input.Id) ? "Opret admin" : "Gem ændringer")
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <!-- Liste over admins (højre kolonne) -->
+        <div class="col-lg-7">
+            <div class="card shadow-sm border-0 h-100">
+                <div class="card-body">
+                    <h4 class="card-title text-secondary fw-bold mb-3">Eksisterende admin-brugere</h4>
+
+                    @if (Model.AdminUsers == null || !Model.AdminUsers.Any())
+                    {
+                        <p class="text-muted">Der er endnu ingen admin-brugere oprettet.</p>
+                    }
+                    else
+                    {
+                        <div class="table-responsive">
+                            <table class="table table-striped align-middle">
+                                <thead>
+                                    <tr>
+                                        <th>Navn</th>
+                                        <th>Email</th>
+                                        <th>Telefon</th>
+                                        <th>Organisation</th>
+                                        <th></th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    @foreach (var admin in Model.AdminUsers)
+                                    {
+                                        <tr>
+                                            <td>@admin.FullName</td>
+                                            <td>@admin.Email</td>
+                                            <td>@admin.PhoneNumber</td>
+                                            <td>@admin.OrganizationName</td>
+                                            <td class="text-end">
+                                                <a asp-page="./Index"
+                                                   asp-route-id="@admin.Id"
+                                                   class="btn btn-sm btn-outline-primary me-2">
+                                                    Rediger
+                                                </a>
+
+                                                <form method="post"
+                                                      asp-page-handler="Delete"
+                                                      asp-route-id="@admin.Id"
+                                                      class="d-inline"
+                                                      onsubmit="return confirm('Er du sikker på, at du vil slette denne admin-bruger?');">
+                                                    <button type="submit" class="btn btn-sm btn-outline-danger">
+                                                        Slet
+                                                    </button>
+                                                </form>
+                                            </td>
+                                        </tr>
+                                    }
+                                </tbody>
+                            </table>
+                        </div>
+                    }
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+}

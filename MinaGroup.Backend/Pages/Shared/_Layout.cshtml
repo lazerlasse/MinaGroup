@@ -32,6 +32,13 @@
                             </li>
                         }
 
+                        @if (User.Identity?.IsAuthenticated == true && (User.IsInRole("SysAdmin")))
+                        {
+                            <li class="nav-item">
+                                <a class="nav-link" asp-area="" asp-page="/SystemManagement/Index">System Administration</a>
+                            </li>
+                        }
+
                         <li class="nav-item">
                             <a class="nav-link" asp-area="" asp-page="/Privacy">Privatlivspolitik</a>
                         </li>

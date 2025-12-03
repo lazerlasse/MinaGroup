@@ -1,0 +1,140 @@
+﻿@page "{id?}"
+@model MinaGroup.Backend.Pages.SystemManagement.Organizations.IndexModel
+
+@{
+    ViewData["Title"] = "Organisationer";
+}
+
+<div class="container mt-5">
+    <h1 class="text-center display-4 mb-2 fw-bold text-primary">Organisationer</h1>
+    <p class="text-center fs-5 text-muted mb-4">
+        Opret og vedligehold organisationer (virksomheder) i systemet.
+    </p>
+
+    <hr />
+
+    <div class="row g-4">
+        <!-- Venstre kolonne: formular -->
+        <div class="col-lg-5">
+            <div class="card shadow-sm border-0 h-100">
+                <div class="card-body">
+                    <h4 class="card-title text-primary fw-bold mb-3">
+                        @(Model.Input.Id.HasValue ? "Rediger organisation" : "Opret ny organisation")
+                    </h4>
+
+                    <form method="post" asp-page-handler="@(Model.Input.Id.HasValue ? "Update" : "Create")">
+                        <div asp-validation-summary="ModelOnly" class="text-danger mb-3"></div>
+
+                        <input type="hidden" asp-for="Input.Id" />
+
+                        <div class="mb-3">
+                            <label asp-for="Input.Name" class="form-label fw-bold"></label>
+                            <input asp-for="Input.Name" class="form-control" />
+                            <span asp-validation-for="Input.Name" class="text-danger"></span>
+                        </div>
+
+                        <div class="mb-3">
+                            <label asp-for="Input.CVRNumber" class="form-label fw-bold"></label>
+                            <input asp-for="Input.CVRNumber" class="form-control" />
+                            <span asp-validation-for="Input.CVRNumber" class="text-danger"></span>
+                        </div>
+
+                        <div class="mb-3">
+                            <label asp-for="Input.OrganizationAdress" class="form-label fw-bold"></label>
+                            <input asp-for="Input.OrganizationAdress" class="form-control" />
+                            <span asp-validation-for="Input.OrganizationAdress" class="text-danger"></span>
+                        </div>
+
+                        <div class="mb-3 row">
+                            <div class="col-4">
+                                <label asp-for="Input.PostalCode" class="form-label fw-bold"></label>
+                                <input asp-for="Input.PostalCode" class="form-control" />
+                                <span asp-validation-for="Input.PostalCode" class="text-danger"></span>
+                            </div>
+                            <div class="col-8">
+                                <label asp-for="Input.Town" class="form-label fw-bold"></label>
+                                <input asp-for="Input.Town" class="form-control" />
+                                <span asp-validation-for="Input.Town" class="text-danger"></span>
+                            </div>
+                        </div>
+
+                        <div class="mb-3">
+                            <label asp-for="Input.Slug" class="form-label fw-bold"></label>
+                            <input asp-for="Input.Slug" class="form-control" />
+                            <small class="text-muted">
+                                Valgfri nøgle til subdomæne, integrationer el.lign.
+                            </small>
+                            <span asp-validation-for="Input.Slug" class="text-danger"></span>
+                        </div>
+
+                        <div class="d-flex justify-content-between mt-4">
+                            <a asp-page="/SystemManagement/Index" class="btn btn-outline-secondary">
+                                Tilbage
+                            </a>
+                            <button type="submit" class="btn btn-outline-primary fw-bold">
+                                @(Model.Input.Id.HasValue ? "Gem ændringer" : "Opret organisation")
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <!-- Højre kolonne: liste -->
+        <div class="col-lg-7">
+            <div class="card shadow-sm border-0 h-100">
+                <div class="card-body">
+                    <h4 class="card-title text-secondary fw-bold mb-3">Eksisterende organisationer</h4>
+
+                    @if (Model.Organizations == null || !Model.Organizations.Any())
+                    {
+                        <p class="text-muted">Der er endnu ingen organisationer oprettet.</p>
+                    }
+                    else
+                    {
+                        <div class="table-responsive">
+                            <table class="table table-striped align-middle">
+                                <thead>
+                                    <tr>
+                                        <th>Navn</th>
+                                        <th>CVR</th>
+                                        <th>Adresse</th>
+                                        <th>Slug</th>
+                                        <th>Brugere</th>
+                                        <th></th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    @foreach (var org in Model.Organizations)
+                                    {
+                                        <tr>
+                                            <td>@org.Name</td>
+                                            <td>@org.CVRNumber</td>
+                                            <td>
+                                                @org.OrganizationAdress<br />
+                                                @org.PostalCode @org.Town
+                                            </td>
+                                            <td>@org.Slug</td>
+                                            <td>@(org.Users?.Count ?? 0)</td>
+                                            <td class="text-end">
+                                                <a asp-page="./Index"
+                                                   asp-route-id="@org.Id"
+                                                   class="btn btn-sm btn-outline-primary">
+                                                    Rediger
+                                                </a>
+                                            </td>
+                                        </tr>
+                                    }
+                                </tbody>
+                            </table>
+                        </div>
+                    }
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+}

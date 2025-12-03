@@ -1,5 +1,5 @@
 ﻿@page "{userId?}/{evaluationDate?}"
-@model MinaGroup.Backend.Pages.Management.SelfEvaluations.CreateModel
+@model MinaGroup.Backend.Pages.SelfEvaluations.CreateModel
 
 @{
     // Hvis der kommer parametre med, viser vi "Udfyld evaluering" - ellers "Opret Selvevalueringsskema"
@@ -239,9 +239,9 @@
                 </div>
 
                 <div class="mb-3">
-                    <label asp-for="SelfEvaluation.CommentFromLeader" class="form-label fw-bold"></label>
-                    <textarea asp-for="SelfEvaluation.CommentFromLeader" class="form-control"></textarea>
-                    <span asp-validation-for="SelfEvaluation.CommentFromLeader" class="text-danger"></span>
+                    <label asp-for="SelfEvaluation.CommentFromUser" class="form-label fw-bold"></label>
+                    <textarea asp-for="SelfEvaluation.CommentFromUser" class="form-control"></textarea>
+                    <span asp-validation-for="SelfEvaluation.CommentFromUser" class="text-danger"></span>
                 </div>
             </div>
 

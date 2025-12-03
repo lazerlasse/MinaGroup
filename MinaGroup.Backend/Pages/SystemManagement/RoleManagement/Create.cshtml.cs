@@ -5,7 +5,7 @@ using Microsoft.AspNetCore.Mvc.RazorPages;
 using System.ComponentModel.DataAnnotations;
 using System.Threading.Tasks;
 
-namespace MinaGroup.Backend.Pages.Management.RoleManagement
+namespace MinaGroup.Backend.Pages.SystemManagement.RoleManagement
 {
     [Authorize(Roles = "SysAdmin")]
     public class CreateModel : PageModel

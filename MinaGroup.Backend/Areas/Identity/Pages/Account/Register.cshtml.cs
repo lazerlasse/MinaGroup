@@ -4,17 +4,17 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
 using MinaGroup.Backend.Enums;
 using MinaGroup.Backend.Models;
-using MinaGroup.Backend.Services;
+using MinaGroup.Backend.Services.Interfaces;
 using Microsoft.Extensions.Logging;
 using System.ComponentModel.DataAnnotations;
 using System.Linq;
 using System.Threading.Tasks;
 using System.Collections.Generic;
-using MinaGroup.Backend.Services.Interfaces;
 
 namespace MinaGroup.Backend.Areas.Identity.Pages.Account
 {
-    [Authorize(Roles = "Admin,SysAdmin")]
+    // 🔐 Kun Admin + Leder må bruge denne side
+    [Authorize(Roles = "Admin,Leder")]
     public class RegisterModel : PageModel
     {
         private readonly UserManager<AppUser> _userManager;
@@ -22,8 +22,11 @@ namespace MinaGroup.Backend.Areas.Identity.Pages.Account
         private readonly ICryptoService _cryptoService;
         private readonly ILogger<RegisterModel> _logger;
 
-        public RegisterModel(UserManager<AppUser> userManager, RoleManager<IdentityRole> roleManager,
-                             ICryptoService cryptoService, ILogger<RegisterModel> logger)
+        public RegisterModel(
+            UserManager<AppUser> userManager,
+            RoleManager<IdentityRole> roleManager,
+            ICryptoService cryptoService,
+            ILogger<RegisterModel> logger)
         {
             _userManager = userManager;
             _roleManager = roleManager;
@@ -81,39 +84,68 @@ namespace MinaGroup.Backend.Areas.Identity.Pages.Account
             public string ConfirmPassword { get; set; } = string.Empty;
         }
 
-        public IActionResult OnGet()
+        // Fælles helper til at udfylde AllRoles afhængigt af, hvem der er logget ind
+        private void PopulateRolesForCurrentUser()
         {
-            // Filtrer roller efter hvem der er logget ind
-            if (User.IsInRole("SysAdmin"))
+            if (User.IsInRole("Admin"))
             {
-                AllRoles = _roleManager.Roles.Select(r => r.Name).ToList();
-            }
-            else if (User.IsInRole("Admin"))
-            {
+                // Admin må tildele Admin, Leder, Borger
                 AllRoles = _roleManager.Roles
                     .Where(r => r.Name == "Admin" || r.Name == "Leder" || r.Name == "Borger")
                     .Select(r => r.Name)
                     .ToList();
             }
+            else if (User.IsInRole("Leder"))
+            {
+                // Leder må kun tildele Borger
+                AllRoles = _roleManager.Roles
+                    .Where(r => r.Name == "Borger")
+                    .Select(r => r.Name)
+                    .ToList();
+            }
             else
             {
-                return Forbid();
+                AllRoles = [];
             }
+        }
+
+        public IActionResult OnGet()
+        {
+            PopulateRolesForCurrentUser();
+
+            if (!AllRoles.Any())
+                return Forbid();
 
             return Page();
         }
 
         public async Task<IActionResult> OnPostAsync(List<string> SelectedRoles, List<WeekDays> SelectedDays)
         {
-            // Re-populate roles on error
+            PopulateRolesForCurrentUser();
+
             if (!ModelState.IsValid)
             {
-                OnGet(); // fill AllRoles appropriately
                 return Page();
             }
 
             try
             {
+                // 🔹 Find den bruger, der opretter (Admin/Leder)
+                var currentUser = await _userManager.GetUserAsync(User);
+                if (currentUser == null)
+                {
+                    ModelState.AddModelError(string.Empty, "Den aktuelle bruger kunne ikke indlæses.");
+                    return Page();
+                }
+
+                if (currentUser.OrganizationId == null)
+                {
+                    ModelState.AddModelError(string.Empty,
+                        "Du er ikke tilknyttet en organisation. Kontakt systemadministratoren.");
+                    return Page();
+                }
+
+                // 🔹 Opret ny bruger – altid i samme organisation som opretteren
                 var user = new AppUser
                 {
                     FirstName = Input.FirstName,
@@ -123,12 +155,13 @@ namespace MinaGroup.Backend.Areas.Identity.Pages.Account
                     PhoneNumber = Input.PhoneNumber,
                     JobStartDate = Input.JobStartDate,
                     JobEndDate = Input.JobEndDate,
+                    OrganizationId = currentUser.OrganizationId,
                     ScheduledDays = (SelectedDays != null && SelectedDays.Any())
                         ? SelectedDays.Aggregate(WeekDays.None, (acc, d) => acc | d)
                         : WeekDays.None
                 };
 
-                // Encrypt CPR før gem
+                // 🔹 Encrypt CPR før gem
                 user.EncryptedPersonNumber = string.IsNullOrWhiteSpace(Input.PersonNumberCPR)
                     ? null
                     : _cryptoService.Protect(Input.PersonNumberCPR);
@@ -137,19 +170,30 @@ namespace MinaGroup.Backend.Areas.Identity.Pages.Account
                 if (!result.Succeeded)
                 {
                     foreach (var error in result.Errors)
-                        ModelState.AddModelError("", error.Description);
+                        ModelState.AddModelError(string.Empty, error.Description);
 
-                    OnGet();
                     return Page();
                 }
 
-                // Sikkerhed: Admin må kun tildele begrænsede roller
-                if (User.IsInRole("Admin") && SelectedRoles != null)
+                // 🔹 Rolle-sikkerhed
+                SelectedRoles ??= new List<string>();
+
+                if (User.IsInRole("Leder"))
                 {
-                    SelectedRoles = SelectedRoles.Where(r => r == "Admin" || r == "Leder" || r == "Borger").ToList();
+                    // Leder må KUN tildele Borger
+                    SelectedRoles = SelectedRoles
+                        .Where(r => r == "Borger")
+                        .ToList();
+                }
+                else if (User.IsInRole("Admin"))
+                {
+                    // Admin må kun tildele Admin/Leder/Borger (ingen SysAdmin her)
+                    SelectedRoles = SelectedRoles
+                        .Where(r => r == "Admin" || r == "Leder" || r == "Borger")
+                        .ToList();
                 }
 
-                if (SelectedRoles != null && SelectedRoles.Count > 0)
+                if (SelectedRoles.Count > 0)
                 {
                     await _userManager.AddToRolesAsync(user, SelectedRoles);
                 }
@@ -160,8 +204,8 @@ namespace MinaGroup.Backend.Areas.Identity.Pages.Account
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Fejl ved oprettelse af bruger");
-                ModelState.AddModelError("", "Der opstod en fejl ved oprettelse af brugeren. Kontakt systemadministrator.");
-                OnGet();
+                ModelState.AddModelError(string.Empty,
+                    "Der opstod en fejl ved oprettelse af brugeren. Kontakt systemadministrator.");
                 return Page();
             }
         }

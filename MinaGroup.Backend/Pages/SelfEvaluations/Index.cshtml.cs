@@ -17,7 +17,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 
-namespace MinaGroup.Backend.Pages.Management.SelfEvaluations
+namespace MinaGroup.Backend.Pages.SelfEvaluations
 {
     [Authorize(Roles = "Admin,Leder")]
     public class IndexModel : PageModel

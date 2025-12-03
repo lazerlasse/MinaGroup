@@ -3,7 +3,7 @@ using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc.RazorPages;
 using MinaGroup.Backend.Models;
 
-namespace MinaGroup.Backend.Pages.Management.RoleManagement
+namespace MinaGroup.Backend.Pages.SystemManagement.RoleManagement
 {
     [Authorize(Roles = "SysAdmin")]
     public class IndexModel : PageModel

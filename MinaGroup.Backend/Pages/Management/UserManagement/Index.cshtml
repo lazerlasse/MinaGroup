@@ -9,20 +9,44 @@
 
 <hr />
 
+@if (TempData["ErrorMessage"] is string err && !string.IsNullOrWhiteSpace(err))
+{
+    <div class="alert alert-danger">@err</div>
+}
+
 <div class="mb-3 d-flex align-items-start">
     <form method="get" class="d-flex me-2 flex-grow-1">
-        <input class="form-control me-2" type="search" placeholder="Søg efter e-mail eller navn..." name="SearchString" value="@Model.CurrentFilter" />
+        <input class="form-control me-2"
+               type="search"
+               placeholder="Søg efter e-mail eller navn..."
+               name="SearchString"
+               value="@Model.CurrentFilter" />
         <button class="btn btn-outline-primary d-flex align-items-center">
             <i class="bi bi-search me-2"></i> Søg
         </button>
     </form>
-    <a class="btn btn-outline-secondary d-flex align-items-center me-2" asp-area="" asp-page="/Management/Index">
+    <a class="btn btn-outline-secondary d-flex align-items-center me-2"
+       asp-area=""
+       asp-page="/Management/Index">
         <i class="bi bi-x-circle me-2"></i> Tilbage
     </a>
-    <a class="btn btn-outline-primary d-flex align-items-center" asp-area="Identity" asp-page="/Account/Register">
+    <a class="btn btn-outline-primary d-flex align-items-center"
+       asp-area="Identity"
+       asp-page="/Account/Register">
         <i class="bi bi-person-plus-fill me-2"></i> Opret bruger
     </a>
 </div>
+
+<p class="text-muted">
+    @if (User.IsInRole("Admin"))
+    {
+        @:Du kan oprette og administrere admin, leder og borgere i din egen organisation.
+    }
+    else if (User.IsInRole("Leder"))
+    {
+        @:Du kan oprette og administrere borgere i din egen organisation.
+    }
+</p>
 
 <table class="table table-striped">
     <thead>
@@ -45,9 +69,17 @@
                 <td>@user.PhoneNumber</td>
                 <td>@string.Join(", ", user.Roles)</td>
                 <td>
-                    <a class="btn btn-sm btn-outline-primary" asp-page="./Details" asp-route-id="@user.Id">Vis</a>
-                    <a class="btn btn-sm btn-outline-warning" asp-page="./Edit" asp-route-id="@user.Id">Rediger</a>
-                    <a class="btn btn-sm btn-outline-danger" asp-page="./Delete" asp-route-id="@user.Id">Slet</a>
+                    <a class="btn btn-sm btn-outline-primary"
+                       asp-page="./Details"
+                       asp-route-id="@user.Id">Vis</a>
+
+                    <a class="btn btn-sm btn-outline-warning"
+                       asp-page="./Edit"
+                       asp-route-id="@user.Id">Rediger</a>
+
+                    <a class="btn btn-sm btn-outline-danger"
+                       asp-page="./Delete"
+                       asp-route-id="@user.Id">Slet</a>
                 </td>
             </tr>
         }
