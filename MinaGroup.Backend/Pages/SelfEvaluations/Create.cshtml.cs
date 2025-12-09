@@ -70,22 +70,38 @@ namespace MinaGroup.Backend.Pages.SelfEvaluations
         {
             try
             {
+                var currentUser = await _userManager.GetCurrentUserWithOrganizationAsync(User);
+                if (currentUser == null)
+                {
+                    TempData["ErrorMessage"] =
+                        "Den aktuelle bruger kunne ikke indlæses eller er ikke tilknyttet en organisation.";
+                    return Unauthorized();
+                }
+
+                var orgId = currentUser.OrganizationId!.Value;
+
                 // Hvis vi kommer via route med fast brugerId
                 if (!string.IsNullOrEmpty(userId))
                 {
                     RouteUserId = userId;
                     SelfEvaluation.UserId = userId;
 
-                    var user = await _context.Users.FirstOrDefaultAsync(u => u.Id == userId);
-                    if (user != null)
+                    // Hent borgeren, men kun hvis den tilhører samme organisation
+                    var user = await _userManager.FindByIdAsync(userId);
+                    if (user != null && user.OrganizationId == orgId)
                     {
-                        // Navn
                         UserFullName = user.GetType().GetProperty("FullName") != null
                             ? (string?)user.GetType().GetProperty("FullName")!.GetValue(user)
                             : $"{user.FirstName} {user.LastName}";
 
                         // Maskeret CPR (ddMMyy-xxxx)
                         UserCPRNumber = CprHelper.GetMaskedCpr(user, _cryptoService);
+                    }
+                    else
+                    {
+                        TempData["ErrorMessage"] =
+                            "Den valgte borger tilhører ikke din organisation eller kunne ikke findes.";
+                        return RedirectToPage("./Index");
                     }
                 }
 
@@ -102,20 +118,25 @@ namespace MinaGroup.Backend.Pages.SelfEvaluations
                     SelfEvaluation.EvaluationDate = DateTime.UtcNow.Date;
                 }
 
-                // Dagens opgaver
+                // Dagens opgaver (kun for denne organisation)
                 TaskOptions = await _context.TaskOptions
                     .AsNoTracking()
+                    .Where(t => t.OrganizationId == orgId)
                     .OrderBy(t => t.TaskName)
                     .ToListAsync();
 
                 // Kun hvis vi IKKE har låst bruger via route, hentes liste til dropdown
                 if (string.IsNullOrEmpty(RouteUserId))
                 {
-                    var borgerUsers = await _userManager.GetUsersInRoleAsync("Borger");
+                    var borgerUsersAll = await _userManager.GetUsersInRoleAsync("Borger");
 
-                    BorgerUsers = borgerUsers
+                    var borgerUsers = borgerUsersAll
+                        .Where(u => u.OrganizationId == orgId)
                         .OrderBy(u => u.FirstName)
                         .ThenBy(u => u.LastName)
+                        .ToList();
+
+                    BorgerUsers = borgerUsers
                         .Select(u => new BorgerUserDto
                         {
                             Id = u.Id,
@@ -142,6 +163,16 @@ namespace MinaGroup.Backend.Pages.SelfEvaluations
             // SelfEvaluation.User navigation skal ikke valideres
             ModelState.Remove(nameof(SelfEvaluation) + ".User");
 
+            var currentUser = await _userManager.GetCurrentUserWithOrganizationAsync(User);
+            if (currentUser == null)
+            {
+                _logger.LogWarning("Forsøg på at oprette evaluering uden gyldig bruger/organisation.");
+                TempData["ErrorMessage"] = "Den aktuelle bruger kunne ikke indlæses eller mangler organisation.";
+                return RedirectToPage("./Index");
+            }
+
+            var orgId = currentUser.OrganizationId!.Value;
+
             // Check om der allerede findes en evaluering for samme borger og dato
             var alreadyExist = await _context.SelfEvaluations.AnyAsync(
                 e => e.UserId == SelfEvaluation.UserId &&
@@ -155,22 +186,28 @@ namespace MinaGroup.Backend.Pages.SelfEvaluations
                 }
                 else
                 {
-                    TempData["ErrorMessage"] = "Der opstod en uventet fejl, prøv venligst igen! Fortsætter problemet, så prøv at gå til oversigten og forsøg at oprette skema påny!";
+                    TempData["ErrorMessage"] =
+                        "Der opstod en uventet fejl, prøv venligst igen! Fortsætter problemet, så prøv at gå til oversigten og forsøg at oprette skema påny!";
                 }
 
-                // Genindlæs TaskOptions
+                // Genindlæs TaskOptions (kun for denne organisation)
                 TaskOptions = await _context.TaskOptions
                     .AsNoTracking()
+                    .Where(t => t.OrganizationId == orgId)
                     .OrderBy(t => t.TaskName)
                     .ToListAsync();
 
                 // Genopbyg BorgerUsers til dropdown (hvis vi ikke har RouteUserId)
                 if (string.IsNullOrEmpty(RouteUserId))
                 {
-                    var borgerUsers = await _userManager.GetUsersInRoleAsync("Borger");
-                    BorgerUsers = borgerUsers
+                    var borgerUsersAll = await _userManager.GetUsersInRoleAsync("Borger");
+                    var borgerUsers = borgerUsersAll
+                        .Where(u => u.OrganizationId == orgId)
                         .OrderBy(u => u.FirstName)
                         .ThenBy(u => u.LastName)
+                        .ToList();
+
+                    BorgerUsers = borgerUsers
                         .Select(u => new BorgerUserDto
                         {
                             Id = u.Id,
@@ -185,23 +222,25 @@ namespace MinaGroup.Backend.Pages.SelfEvaluations
                 return Page();
             }
 
-            // Load current user og check
-            var currentUser = await _userManager.GetUserAsync(User);
-            if (currentUser == null)
-            {
-                _logger.LogWarning("Forsøg på at oprette evaluering uden gyldig bruger.");
-                TempData["ErrorMessage"] = "Den aktuelle bruger kunne ikke indlæses.";
-                return RedirectToPage("./Index");
-            }
-
             try
             {
+                // Verificér at den valgte borger tilhører samme organisation
+                var evalUser = await _userManager.FindByIdAsync(SelfEvaluation.UserId);
+                if (evalUser == null || evalUser.OrganizationId != orgId)
+                {
+                    _logger.LogWarning("Forsøg på at oprette evaluering for borger i anden organisation. UserId={UserId}", SelfEvaluation.UserId);
+                    TempData["ErrorMessage"] = "Den valgte borger tilhører ikke din organisation eller kunne ikke findes.";
+                    return RedirectToPage("./Index");
+                }
+
                 // Beregn total tid (bruger din helper)
                 if (SelfEvaluation.ArrivalTime.HasValue && SelfEvaluation.DepartureTime.HasValue)
+                {
                     SelfEvaluation.TotalHours = CalculateTotalWorkHours.CalculateTotalHours(
                         SelfEvaluation.ArrivalTime.Value,
                         SelfEvaluation.DepartureTime.Value,
                         SelfEvaluation.BreakDuration);
+                }
 
                 // Auto-godkend hvis udfyldt korrekt
                 if ((SelfEvaluation.IsSick && !string.IsNullOrEmpty(SelfEvaluation.SickReason)) ||
@@ -217,7 +256,9 @@ namespace MinaGroup.Backend.Pages.SelfEvaluations
                 if (SelectedTaskIds is { Count: > 0 })
                 {
                     SelfEvaluation.SelectedTask = await _context.TaskOptions
-                        .Where(t => SelectedTaskIds.Contains(t.TaskOptionId))
+                        .Where(t =>
+                            SelectedTaskIds.Contains(t.TaskOptionId) &&
+                            t.OrganizationId == orgId)
                         .ToListAsync();
                 }
 

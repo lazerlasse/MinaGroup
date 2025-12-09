@@ -1,32 +1,33 @@
-﻿@page "{id}"
+﻿@page
 @model MinaGroup.Backend.Pages.SystemManagement.RoleManagement.DeleteModel
 @{
     ViewData["Title"] = "Slet rolle";
-    Layout = "/Pages/Shared/_Layout.cshtml";
 }
 
-<h2 class="text-danger fw-bold mb-4">⚠️ Slet rolle</h2>
+<h1>Slet rolle</h1>
 
-<div class="alert alert-danger rounded-3 shadow-sm">
-    <strong>Advarsel!</strong> Denne handling vil <u>permanent slette</u> rollen og kan ikke fortrydes.
-</div>
+@if (Model.Role is null)
+{
+    <p class="text-danger">Rollen blev ikke fundet.</p>
+}
+else
+{
+    <h4>Er du sikker på, at du vil slette denne rolle?</h4>
+    <dl class="row">
+        <dt class="col-sm-2">Id</dt>
+        <dd class="col-sm-10">@Model.Role.Id</dd>
 
-<div class="card shadow-sm rounded-3 mb-4">
-    <div class="card-body">
-        <div class="mb-3">
-            <label class="form-label fw-bold">Rollenavn</label>
-            <input value="@Model.RoleName" class="form-control" readonly />
+        <dt class="col-sm-2">Navn</dt>
+        <dd class="col-sm-10">@Model.Role.Name</dd>
+    </dl>
+
+    <form method="post">
+        <input type="hidden" asp-for="Id" />
+        <button type="submit" class="btn btn-danger">Slet</button>
+        <a asp-page="Index" class="btn btn-secondary">Annuller</a>
+
+        <div class="text-danger mt-2">
+            @Html.ValidationSummary()
         </div>
-    </div>
-</div>
-
-<form method="post">
-    <input type="hidden" asp-for="RoleId" />
-
-    <a asp-page="./Index" class="btn btn-outline-secondary">
-        <i class="bi bi-x-circle"></i> Annuller
-    </a>
-    <button type="submit" class="btn btn-outline-danger fw-bold me-2">
-        <i class="bi bi-trash-fill"></i> Slet
-    </button>
-</form>
+    </form>
+}

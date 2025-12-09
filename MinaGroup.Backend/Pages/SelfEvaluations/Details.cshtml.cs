@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
 using Microsoft.EntityFrameworkCore;
@@ -20,23 +21,26 @@ namespace MinaGroup.Backend.Pages.SelfEvaluations
         private readonly AppDbContext _context;
         private readonly ILogger<DetailsModel> _logger;
         private readonly ICryptoService _cryptoService;
+        private readonly UserManager<AppUser> _userManager;
 
         public DetailsModel(
             AppDbContext context,
             ILogger<DetailsModel> logger,
-            ICryptoService cryptoService)
+            ICryptoService cryptoService,
+            UserManager<AppUser> userManager)
         {
-            _context = context;
-            _logger = logger;
-            _cryptoService = cryptoService;
+            _context = context ?? throw new ArgumentNullException(nameof(context));
+            _logger = logger ?? throw new ArgumentNullException(nameof(logger));
+            _cryptoService = cryptoService ?? throw new ArgumentNullException(nameof(cryptoService));
+            _userManager = userManager ?? throw new ArgumentNullException(nameof(userManager));
         }
 
         public SelfEvaluation SelfEvaluation { get; set; } = default!;
 
-        public List<TaskOption> TaskOptions { get; set; } = [];
+        public List<TaskOption> TaskOptions { get; set; } = new();
 
         [BindProperty]
-        public List<int> SelectedTaskIds { get; set; } = [];
+        public List<int> SelectedTaskIds { get; set; } = new();
 
         // Maskeret CPR til visning (ddMMyy-xxxx)
         public string? MaskedCpr { get; set; }
@@ -51,11 +55,24 @@ namespace MinaGroup.Backend.Pages.SelfEvaluations
 
             try
             {
+                var currentUser = await _userManager.GetCurrentUserWithOrganizationAsync(User);
+                if (currentUser == null)
+                {
+                    TempData["ErrorMessage"] =
+                        "Den aktuelle bruger kunne ikke indlæses eller er ikke tilknyttet en organisation.";
+                    return Unauthorized();
+                }
+
+                var orgId = currentUser.OrganizationId!.Value;
+
                 var selfevaluation = await _context.SelfEvaluations
                     .Include(u => u.User)
                     .Include(u => u.ApprovedByUser)
                     .Include(u => u.SelectedTask)
-                    .FirstOrDefaultAsync(m => m.Id == id);
+                    .Where(se => se.Id == id.Value &&
+                                 se.User != null &&
+                                 se.User.OrganizationId == orgId)
+                    .FirstOrDefaultAsync();
 
                 if (selfevaluation == null)
                 {
@@ -63,9 +80,10 @@ namespace MinaGroup.Backend.Pages.SelfEvaluations
                     return RedirectToPage("./Index");
                 }
 
-                // Hent alle TaskOptions til visning (checkboxes readonly)
+                // Hent TaskOptions for DENNE organisation (readonly på view)
                 TaskOptions = await _context.TaskOptions
                     .AsNoTracking()
+                    .Where(t => t.OrganizationId == orgId)
                     .OrderBy(t => t.TaskName)
                     .ToListAsync();
 

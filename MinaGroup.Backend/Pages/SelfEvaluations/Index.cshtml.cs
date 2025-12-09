@@ -9,9 +9,7 @@ using MinaGroup.Backend.Enums;
 using MinaGroup.Backend.Helpers;
 using MinaGroup.Backend.Models;
 using MinaGroup.Backend.Services;
-using QuestPDF.Fluent;
-using QuestPDF.Helpers;
-using QuestPDF.Infrastructure;
+using MinaGroup.Backend.ViewModels;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -25,29 +23,25 @@ namespace MinaGroup.Backend.Pages.SelfEvaluations
         private readonly AppDbContext _context;
         private readonly UserManager<AppUser> _userManager;
         private readonly SelfEvaluationPdfService _pdfService;
-        private readonly ILogger<EditModel> _logger;
+        private readonly ILogger<IndexModel> _logger;
 
-        public IndexModel(AppDbContext context, UserManager<AppUser> userManager, SelfEvaluationPdfService pdfService, ILogger<EditModel> logger)
+        public IndexModel(
+            AppDbContext context,
+            UserManager<AppUser> userManager,
+            SelfEvaluationPdfService pdfService,
+            ILogger<IndexModel> logger)
         {
             _context = context ?? throw new ArgumentNullException(nameof(context));
             _userManager = userManager ?? throw new ArgumentNullException(nameof(userManager));
             _pdfService = pdfService ?? throw new ArgumentNullException(nameof(pdfService));
-            _logger = logger;
-        }
-
-        // View model for missing evals
-        public class MissingEvalView
-        {
-            public string UserId { get; set; } = string.Empty;
-            public string FullName { get; set; } = string.Empty;
-            public DateTime Date { get; set; }
+            _logger = logger ?? throw new ArgumentNullException(nameof(logger));
         }
 
         // Outputs to view
-        public List<MissingEvalView> MissingEvaluations { get; set; } = [];
-        public List<SelfEvaluation> PendingLeaderComments { get; set; } = [];
-        public List<SelfEvaluation> ApprovedEvaluations { get; set; } = [];
-        public List<SelectListItem> BorgerSelectList { get; set; } = [];
+        public List<MissingEvalView> MissingEvaluations { get; set; } = new();
+        public List<SelfEvaluation> PendingLeaderComments { get; set; } = new();
+        public List<SelfEvaluation> ApprovedEvaluations { get; set; } = new();
+        public List<SelectListItem> BorgerSelectList { get; set; } = new();
 
         // Filters / paging (bound from query string)
         [BindProperty(SupportsGet = true)]
@@ -62,44 +56,80 @@ namespace MinaGroup.Backend.Pages.SelfEvaluations
         public int CurrentPage => Math.Max(Page, 1);
         public int TotalPages { get; set; } = 1;
 
+
         public async Task<IActionResult> OnGetAsync(string? userFilter, int page = 1, int pageSize = 25)
         {
             try
             {
+                var currentUser = await _userManager.GetCurrentUserWithOrganizationAsync(User);
+                if (currentUser == null)
+                {
+                    TempData["ErrorMessage"] = "Den aktuelle bruger kunne ikke indlæses eller mangler organisation.";
+                    return Unauthorized();
+                }
+
+                var orgId = currentUser.OrganizationId!.Value;
+
                 // normalize & bind
                 UserFilter = userFilter;
                 Page = page <= 0 ? 1 : page;
                 PageSize = (pageSize == 25 || pageSize == 50) ? pageSize : 25;
 
-                // 1) Build list of borger users for select list
-                var borgerUsers = await _userManager.GetUsersInRoleAsync("Borger");
+                // 1) Liste over borger-brugere (kun i denne organisation)
+                var borgerUsersAll = await _userManager.GetUsersInRoleAsync("Borger");
+                var borgerUsers = borgerUsersAll
+                    .Where(u => u.OrganizationId == orgId)
+                    .ToList();
+
                 BorgerSelectList = borgerUsers
-                    .Select(u => new SelectListItem { Value = u.Id, Text = string.IsNullOrWhiteSpace(u.FullName) ? u.Email : u.FullName })
+                    .Select(u => new SelectListItem
+                    {
+                        Value = u.Id,
+                        Text = string.IsNullOrWhiteSpace(u.FullName) ? u.Email : u.FullName
+                    })
                     .OrderBy(x => x.Text)
                     .ToList();
 
-                // 2) Compute missing evaluations
+                // 2) Beregn manglende evalueringer (per borger i org)
                 var today = DateTime.UtcNow.Date;
                 var borgerIds = borgerUsers.Select(u => u.Id).ToList();
 
+                MissingEvaluations = new List<MissingEvalView>();
+
                 if (borgerIds.Any())
                 {
-                    var earliestStart = borgerUsers.Min(u => u.JobStartDate) ?? today.AddMonths(-6);
+                    var earliestStart = borgerUsers
+                        .Where(u => u.JobStartDate.HasValue)
+                        .Select(u => u.JobStartDate!.Value)
+                        .DefaultIfEmpty(today.AddMonths(-6))
+                        .Min()
+                        .Date;
+
                     var existingEvals = await _context.SelfEvaluations
-                        .Where(se => borgerIds.Contains(se.UserId) && se.EvaluationDate.Date >= earliestStart.Date && se.EvaluationDate.Date <= today)
+                        .Include(se => se.User)
+                        .Where(se => borgerIds.Contains(se.UserId)
+                                     && se.User.OrganizationId == orgId
+                                     && se.EvaluationDate.Date >= earliestStart
+                                     && se.EvaluationDate.Date <= today)
                         .AsNoTracking()
                         .ToListAsync();
 
                     foreach (var user in borgerUsers)
                     {
-                        if (!user.JobStartDate.HasValue) continue;
+                        if (!user.JobStartDate.HasValue)
+                            continue;
 
                         var start = user.JobStartDate.Value.Date;
                         var end = user.JobEndDate.HasValue ? user.JobEndDate.Value.Date : today;
-                        if (start > today) continue;
-                        if (end > today) end = today;
 
-                        var scheduled = user.ScheduledDays ?? (WeekDays.Mandag | WeekDays.Tirsdag | WeekDays.Onsdag | WeekDays.Torsdag | WeekDays.Fredag);
+                        if (start > today)
+                            continue;
+                        if (end > today)
+                            end = today;
+
+                        var scheduled = user.ScheduledDays ??
+                                        (WeekDays.Mandag | WeekDays.Tirsdag | WeekDays.Onsdag |
+                                         WeekDays.Torsdag | WeekDays.Fredag);
 
                         var userExistingDates = existingEvals
                             .Where(e => e.UserId == user.Id)
@@ -108,8 +138,10 @@ namespace MinaGroup.Backend.Pages.SelfEvaluations
 
                         for (var d = start; d <= end; d = d.AddDays(1))
                         {
-                            if (!IsScheduledOn(scheduled, d.DayOfWeek)) continue;
-                            if (userExistingDates.Contains(d)) continue;
+                            if (!IsScheduledOn(scheduled, d.DayOfWeek))
+                                continue;
+                            if (userExistingDates.Contains(d))
+                                continue;
 
                             MissingEvaluations.Add(new MissingEvalView
                             {
@@ -120,30 +152,32 @@ namespace MinaGroup.Backend.Pages.SelfEvaluations
                         }
                     }
 
-                    MissingEvaluations = MissingEvaluations.OrderBy(m => m.FullName).ThenBy(m => m.Date).ToList();
+                    MissingEvaluations = MissingEvaluations
+                        .OrderBy(m => m.FullName)
+                        .ThenBy(m => m.Date)
+                        .ToList();
                 }
 
-                // 3) Pending leader comments
+                // 3) Skemaer der mangler lederkommentar (kun i denne org)
                 PendingLeaderComments = await _context.SelfEvaluations
                     .Include(se => se.User)
-                    .Where(se =>
-                        se.IsApproved == false &&
-                        (
-                            string.IsNullOrEmpty(se.CommentFromLeader)
-                            || (se.IsSick && string.IsNullOrEmpty(se.SickReason))
-                            || (se.IsNoShow && string.IsNullOrEmpty(se.NoShowReason))
-                            || (se.IsOffWork && string.IsNullOrEmpty(se.OffWorkReason))
-                        )
-                     )
+                    .Where(se => se.User.OrganizationId == orgId &&
+                                 se.IsApproved == false &&
+                                 (
+                                     string.IsNullOrEmpty(se.CommentFromLeader)
+                                     || (se.IsSick && string.IsNullOrEmpty(se.SickReason))
+                                     || (se.IsNoShow && string.IsNullOrEmpty(se.NoShowReason))
+                                     || (se.IsOffWork && string.IsNullOrEmpty(se.OffWorkReason))
+                                 ))
                     .OrderByDescending(se => se.EvaluationDate)
                     .AsNoTracking()
                     .ToListAsync();
 
-                // 4) Approved evaluations (with optional filter and paging)
+                // 4) Godkendte evalueringer med paging (kun i denne org)
                 var approvedQuery = _context.SelfEvaluations
                     .Include(se => se.User)
                     .Include(se => se.ApprovedByUser)
-                    .Where(se => se.IsApproved);
+                    .Where(se => se.IsApproved && se.User.OrganizationId == orgId);
 
                 if (!string.IsNullOrEmpty(UserFilter))
                 {
@@ -153,7 +187,8 @@ namespace MinaGroup.Backend.Pages.SelfEvaluations
                 var totalApproved = await approvedQuery.CountAsync();
                 TotalPages = Math.Max(1, (int)Math.Ceiling(totalApproved / (double)PageSize));
 
-                if (Page > TotalPages) Page = TotalPages;
+                if (Page > TotalPages)
+                    Page = TotalPages;
 
                 ApprovedEvaluations = await approvedQuery
                     .OrderByDescending(se => se.EvaluationDate)
@@ -166,17 +201,15 @@ namespace MinaGroup.Backend.Pages.SelfEvaluations
             }
             catch (Exception ex)
             {
-                // Generic error handling with TempData + redirect to dashboard
                 _logger.LogError(ex, "Der opstod en fejl ved indlæsning af selvevalueringer.");
                 TempData["ErrorMessage"] = "Der opstod en fejl ved indlæsning af selvevalueringer. Prøv igen senere.";
                 return RedirectToPage("/Management/Index");
             }
         }
 
-        // Helper
-        private static bool IsScheduledOn(WeekDays scheduled, DayOfWeek day)
+        private static bool IsScheduledOn(WeekDays scheduled, DayOfWeek dayOfWeek)
         {
-            return day switch
+            return dayOfWeek switch
             {
                 DayOfWeek.Monday => scheduled.HasFlag(WeekDays.Mandag),
                 DayOfWeek.Tuesday => scheduled.HasFlag(WeekDays.Tirsdag),
@@ -193,9 +226,19 @@ namespace MinaGroup.Backend.Pages.SelfEvaluations
         {
             try
             {
+                var currentUser = await _userManager.GetCurrentUserWithOrganizationAsync(User);
+                if (currentUser == null)
+                {
+                    TempData["ErrorMessage"] = "Den aktuelle bruger kunne ikke indlæses eller mangler organisation.";
+                    return Unauthorized();
+                }
+
+                var orgId = currentUser.OrganizationId!.Value;
+
                 var evaluation = await _context.SelfEvaluations
                     .Include(se => se.User)
-                    .FirstOrDefaultAsync(se => se.Id == id);
+                    .Where(se => se.Id == id && se.User.OrganizationId == orgId)
+                    .FirstOrDefaultAsync();
 
                 if (evaluation == null)
                 {

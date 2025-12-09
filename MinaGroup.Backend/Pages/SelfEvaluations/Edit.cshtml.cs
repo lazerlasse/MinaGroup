@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
 using Microsoft.EntityFrameworkCore;
@@ -20,15 +21,18 @@ namespace MinaGroup.Backend.Pages.SelfEvaluations
         private readonly AppDbContext _context;
         private readonly ILogger<EditModel> _logger;
         private readonly ICryptoService _cryptoService;
+        private readonly UserManager<AppUser> _userManager;
 
         public EditModel(
             AppDbContext context,
             ILogger<EditModel> logger,
-            ICryptoService cryptoService)
+            ICryptoService cryptoService,
+            UserManager<AppUser> userManager)
         {
             _context = context ?? throw new ArgumentNullException(nameof(context));
             _logger = logger ?? throw new ArgumentNullException(nameof(logger));
             _cryptoService = cryptoService ?? throw new ArgumentNullException(nameof(cryptoService));
+            _userManager = userManager ?? throw new ArgumentNullException(nameof(userManager));
         }
 
         [BindProperty]
@@ -54,11 +58,24 @@ namespace MinaGroup.Backend.Pages.SelfEvaluations
 
             try
             {
+                var currentUser = await _userManager.GetCurrentUserWithOrganizationAsync(User);
+                if (currentUser == null)
+                {
+                    TempData["ErrorMessage"] =
+                        "Den aktuelle bruger kunne ikke indlæses eller er ikke tilknyttet en organisation.";
+                    return Unauthorized();
+                }
+
+                var orgId = currentUser.OrganizationId!.Value;
+
                 var evaluation = await _context.SelfEvaluations
                     .Include(e => e.User)
                     .Include(e => e.ApprovedByUser)
                     .Include(e => e.SelectedTask)
-                    .FirstOrDefaultAsync(e => e.Id == id);
+                    .FirstOrDefaultAsync(e =>
+                        e.Id == id &&
+                        e.User != null &&
+                        e.User.OrganizationId == orgId);
 
                 if (evaluation == null)
                 {
@@ -66,9 +83,10 @@ namespace MinaGroup.Backend.Pages.SelfEvaluations
                     return RedirectToPage("./Index");
                 }
 
-                // Hent alle task options
+                // Hent alle task options for DENNE organisation
                 TaskOptions = await _context.TaskOptions
                     .AsNoTracking()
+                    .Where(t => t.OrganizationId == orgId)
                     .OrderBy(t => t.TaskName)
                     .ToListAsync();
 
@@ -79,7 +97,7 @@ namespace MinaGroup.Backend.Pages.SelfEvaluations
 
                 Evaluation = evaluation;
 
-                // Sæt maskeret CPR til visning
+                // Maskeret CPR
                 if (Evaluation.User != null)
                 {
                     MaskedCpr = CprHelper.GetMaskedCpr(Evaluation.User, _cryptoService);
@@ -89,8 +107,8 @@ namespace MinaGroup.Backend.Pages.SelfEvaluations
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Fejl under hentning af selvevaluering {Id}", id);
-                TempData["ErrorMessage"] = "Der opstod en fejl under indlæsning af selvevalueringen.";
+                _logger.LogError(ex, "Fejl ved indlæsning af Edit SelfEvaluation siden for id {Id}", id);
+                TempData["ErrorMessage"] = "Der opstod en fejl ved indlæsning af siden.";
                 return RedirectToPage("./Index");
             }
         }
@@ -100,12 +118,20 @@ namespace MinaGroup.Backend.Pages.SelfEvaluations
             if (!User.IsInRole("Admin"))
                 return Forbid();
 
+            var currentUser = await _userManager.GetCurrentUserWithOrganizationAsync(User);
+            if (currentUser == null)
+            {
+                TempData["ErrorMessage"] =
+                    "Den aktuelle bruger kunne ikke indlæses eller er ikke tilknyttet en organisation.";
+                return Unauthorized();
+            }
+
+            var orgId = currentUser.OrganizationId!.Value;
+
             if (!ModelState.IsValid)
             {
                 await ReloadPageDataAsync(Evaluation.Id);
-
                 TempData["ErrorMessage"] = "Der opstod en uventet fejl, forsøg venligst igen!.";
-
                 return Page();
             }
 
@@ -113,7 +139,11 @@ namespace MinaGroup.Backend.Pages.SelfEvaluations
             {
                 var evalInDb = await _context.SelfEvaluations
                     .Include(e => e.SelectedTask)
-                    .FirstOrDefaultAsync(e => e.Id == Evaluation.Id);
+                    .Include(e => e.User)
+                    .FirstOrDefaultAsync(e =>
+                        e.Id == Evaluation.Id &&
+                        e.User != null &&
+                        e.User.OrganizationId == orgId);
 
                 if (evalInDb == null)
                 {
@@ -121,7 +151,7 @@ namespace MinaGroup.Backend.Pages.SelfEvaluations
                     return RedirectToPage("./Index");
                 }
 
-                // Opdater felter
+                // Opdater felter (samme logik som før)
                 evalInDb.IsSick = Evaluation.IsSick;
                 evalInDb.SickReason = Evaluation.SickReason;
                 evalInDb.IsNoShow = Evaluation.IsNoShow;
@@ -150,7 +180,9 @@ namespace MinaGroup.Backend.Pages.SelfEvaluations
                 if (SelectedTaskIds is { Count: > 0 })
                 {
                     var selectedTasks = await _context.TaskOptions
-                        .Where(t => SelectedTaskIds.Contains(t.TaskOptionId))
+                        .Where(t =>
+                            SelectedTaskIds.Contains(t.TaskOptionId) &&
+                            t.OrganizationId == orgId)
                         .ToListAsync();
 
                     foreach (var task in selectedTasks)
@@ -164,20 +196,29 @@ namespace MinaGroup.Backend.Pages.SelfEvaluations
 
                 // Beregn total tid igen ved ændringer
                 if (Evaluation.ArrivalTime.HasValue && Evaluation.DepartureTime.HasValue)
+                {
                     evalInDb.TotalHours = CalculateTotalWorkHours.CalculateTotalHours(
                         Evaluation.ArrivalTime.Value,
                         Evaluation.DepartureTime.Value,
                         Evaluation.BreakDuration);
+                }
 
                 await _context.SaveChangesAsync();
 
                 TempData["SuccessMessage"] = "Evalueringen blev opdateret.";
                 return RedirectToPage("./Index");
             }
+            catch (DbUpdateException dbEx)
+            {
+                _logger.LogError(dbEx, "Databasefejl ved opdatering af SelfEvaluation med id {Id}", Evaluation.Id);
+                TempData["ErrorMessage"] = "Der opstod en databasefejl ved opdatering. Prøv igen.";
+                await ReloadPageDataAsync(Evaluation.Id);
+                return Page();
+            }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Fejl under opdatering af selvevaluering {Id}", Evaluation.Id);
-                TempData["ErrorMessage"] = "Der opstod en fejl under opdatering af selvevalueringen.";
+                _logger.LogError(ex, "Uventet fejl ved opdatering af SelfEvaluation med id {Id}", Evaluation.Id);
+                TempData["ErrorMessage"] = "Der opstod en uventet fejl ved opdatering.";
                 await ReloadPageDataAsync(Evaluation.Id);
                 return Page();
             }
@@ -185,14 +226,31 @@ namespace MinaGroup.Backend.Pages.SelfEvaluations
 
         private async Task ReloadPageDataAsync(int evalId)
         {
+            var currentUser = await _userManager.GetCurrentUserWithOrganizationAsync(User);
+            if (currentUser == null)
+            {
+                Evaluation = new SelfEvaluation();
+                TaskOptions = new List<TaskOption>();
+                SelectedTaskIds = new List<int>();
+                MaskedCpr = null;
+                return;
+            }
+
+            var orgId = currentUser.OrganizationId!.Value;
+
             Evaluation = await _context.SelfEvaluations
                 .Include(e => e.User)
                 .Include(e => e.ApprovedByUser)
                 .Include(e => e.SelectedTask)
-                .FirstOrDefaultAsync(e => e.Id == evalId) ?? new SelfEvaluation();
+                .FirstOrDefaultAsync(e =>
+                    e.Id == evalId &&
+                    e.User != null &&
+                    e.User.OrganizationId == orgId)
+                ?? new SelfEvaluation();
 
             TaskOptions = await _context.TaskOptions
                 .AsNoTracking()
+                .Where(t => t.OrganizationId == orgId)
                 .OrderBy(t => t.TaskName)
                 .ToListAsync();
 

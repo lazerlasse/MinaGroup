@@ -1,7 +1,10 @@
+using System.Collections.Generic;
+using System.Linq;
+using System.Threading.Tasks;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc.RazorPages;
-using MinaGroup.Backend.Models;
+using Microsoft.EntityFrameworkCore;
 
 namespace MinaGroup.Backend.Pages.SystemManagement.RoleManagement
 {
@@ -9,40 +12,30 @@ namespace MinaGroup.Backend.Pages.SystemManagement.RoleManagement
     public class IndexModel : PageModel
     {
         private readonly RoleManager<IdentityRole> _roleManager;
-        private readonly UserManager<AppUser> _userManager;
 
-        public IndexModel(RoleManager<IdentityRole> roleManager, UserManager<AppUser> userManager)
+        public IndexModel(RoleManager<IdentityRole> roleManager)
         {
             _roleManager = roleManager;
-            _userManager = userManager;
         }
 
-        public List<RoleViewModel> Roles { get; set; } = [];
+        public IList<IdentityRole> Roles { get; set; } = new List<IdentityRole>();
 
         public async Task OnGetAsync()
         {
-            var roles = _roleManager.Roles.ToList();
-
-            foreach (var role in roles)
-            {
-                if (!string.IsNullOrEmpty(role.Name))
-                {
-                    var usersInRole = await _userManager.GetUsersInRoleAsync(role.Name);
-                    Roles.Add(new RoleViewModel
-                    {
-                        Id = role.Id,
-                        Name = role.Name!,
-                        UserCount = usersInRole.Count
-                    });
-                }
-            }
+            Roles = await _roleManager.Roles
+                .OrderBy(r => r.Name)
+                .ToListAsync();
         }
 
-        public class RoleViewModel
+        /// <summary>
+        /// Hjælper til at markere system-roller, som ikke må slettes/ændres.
+        /// </summary>
+        public static bool IsCoreRole(string? roleName)
         {
-            public string Id { get; set; } = string.Empty;
-            public string Name { get; set; } = string.Empty;
-            public int UserCount { get; set; }
+            if (string.IsNullOrWhiteSpace(roleName))
+                return false;
+
+            return roleName is "SysAdmin" or "Admin" or "Leder" or "Borger";
         }
     }
 }

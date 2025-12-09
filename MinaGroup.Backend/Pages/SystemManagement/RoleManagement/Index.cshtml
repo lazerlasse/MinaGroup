@@ -1,42 +1,41 @@
 ﻿@page
-@using Microsoft.AspNetCore.Authorization
 @model MinaGroup.Backend.Pages.SystemManagement.RoleManagement.IndexModel
-@attribute [Authorize(Roles = "SysAdmin")]
-
 @{
     ViewData["Title"] = "Rolleadministration";
 }
 
-<h1 class="text-center display-4 mb-2 fw-bold text-primary">@ViewData["Title"]</h1>
-
-<hr />
+<h1>Rolleadministration</h1>
 
 <p>
-    <a class="btn btn-outline-secondary me-2" asp-area="" asp-page="/Management/Index">
-        <i class="bi bi-x-circle me-2"></i> Tilbage
-    </a>
-    <a class="btn btn-outline-primary" asp-page="Create">
-        <i class="bi bi-people me-2"></i> Opret ny rolle
-    </a>
+    <a asp-page="Create" class="btn btn-primary">Opret ny rolle</a>
+    <a asp-page="/SystemManagement/Index" class="btn btn-secondary">Tilbage til System Management</a>
 </p>
 
 <table class="table table-striped">
     <thead>
         <tr>
-            <th>Bruger rolle</th>
-            <th>Antal brugere i denne rolle</th>
+            <th>Navn</th>
+            <th>Id</th>
             <th></th>
         </tr>
     </thead>
     <tbody>
         @foreach (var role in Model.Roles)
         {
+            var isCore = MinaGroup.Backend.Pages.SystemManagement.RoleManagement.IndexModel.IsCoreRole(role.Name);
             <tr>
                 <td>@role.Name</td>
-                <td>@role.UserCount</td>
+                <td>@role.Id</td>
                 <td>
-                    <a class="btn btn-sm btn-outline-warning" asp-page="./Edit" asp-route-id="@role.Id">Rediger</a>
-                    <a class="btn btn-sm btn-outline-danger" asp-page="./Delete" asp-route-id="@role.Id">Slet</a>
+                    <a asp-page="Edit" asp-route-id="@role.Id" class="btn btn-sm btn-info">Rediger</a>
+                    @if (!isCore)
+                    {
+                        <a asp-page="Delete" asp-route-id="@role.Id" class="btn btn-sm btn-danger">Slet</a>
+                    }
+                    else
+                    {
+                        <span class="text-muted">Systemrolle</span>
+                    }
                 </td>
             </tr>
         }

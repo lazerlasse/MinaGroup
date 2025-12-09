@@ -9,7 +9,7 @@ using MinaGroup.Backend.Services.Interfaces;
 
 namespace MinaGroup.Backend.Pages.Management.ServiceManagement
 {
-    [Authorize(Roles = "Admin,SysAdmin")]
+    [Authorize(Roles = "Admin")]
     public class IndexModel : PageModel
     {
         private readonly AppDbContext _context;

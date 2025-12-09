@@ -1,37 +1,41 @@
-﻿@page "{id}"
+﻿@page
 @model MinaGroup.Backend.Pages.SystemManagement.RoleManagement.EditModel
 @{
     ViewData["Title"] = "Rediger rolle";
 }
 
-<h1 class="text-center display-4 fw-bold text-primary mb-4">@ViewData["Title"]</h1>
+<h1>Rediger rolle</h1>
 
-<hr />
+<form method="post">
+    <input type="hidden" asp-for="Input.Id" />
 
-<div class="row justify-content-center">
-    <div class="col-md-8">
-        <form method="post" class="p-4 border rounded shadow-sm bg-light">
-            <div asp-validation-summary="ModelOnly" class="text-danger mb-3"></div>
-
-            <input type="hidden" asp-for="Input.Id" />
-
-            <div class="mb-3">
-                <label asp-for="Input.Name" class="form-label fw-bold"></label>
-                <input asp-for="Input.Name" class="form-control" placeholder="Indtast nyt rollenavn" />
-                <span asp-validation-for="Input.Name" class="text-danger"></span>
-            </div>
-
-            <div class="d-flex justify-content-between">
-                <a asp-page="./Index" class="btn btn-outline-secondary">
-                    <i class="bi bi-x-circle"></i> Fortryd
-                </a>
-                <button type="submit" class="btn btn-outline-primary">
-                    <i class="bi bi-pencil-square"></i> Gem ændringer
-                </button>
-            </div>
-        </form>
+    <div class="form-group">
+        <label asp-for="Input.Name"></label>
+        @if (Model.Input.IsCoreRole)
+        {
+            <input asp-for="Input.Name" class="form-control" readonly />
+        }
+        else
+        {
+            <input asp-for="Input.Name" class="form-control" />
+        }
+        <span asp-validation-for="Input.Name" class="text-danger"></span>
     </div>
-</div>
+
+    @if (Model.Input.IsCoreRole)
+    {
+        <p class="text-muted mt-2">
+            Dette er en systemrolle og kan ikke omdøbes.
+        </p>
+    }
+
+    <button type="submit" class="btn btn-primary mt-2">Gem</button>
+    <a asp-page="Index" class="btn btn-secondary mt-2">Tilbage</a>
+
+    <div class="text-danger mt-2">
+        @Html.ValidationSummary()
+    </div>
+</form>
 
 @section Scripts {
     <partial name="_ValidationScriptsPartial" />

@@ -14,7 +14,7 @@ namespace MinaGroup.Backend.Models
 
         // Borger som evalueringen tilhører.
         [Required]
-        public string UserId { get; set; }
+        public string UserId { get; set; } = string.Empty;
 
         [ForeignKey(nameof(UserId)), Display(Name = "Borger"), ValidateNever]
         public AppUser User { get; set; }

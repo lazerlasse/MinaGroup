@@ -136,8 +136,8 @@
 
         <div class="col-auto">
             <select name="pageSize" class="form-select">
-                <option value="25" selected="@(Model.PageSize == 25 ? "selected" : null)">25</option>
-                <option value="50" selected="@(Model.PageSize == 50 ? "selected" : null)">50</option>
+                <option value="25" asp-selected-when="@(Model.PageSize == 25)">25</option>
+                <option value="50" asp-selected-when="@(Model.PageSize == 50)">50</option>
             </select>
         </div>
 

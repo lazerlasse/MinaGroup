@@ -25,7 +25,14 @@
                             <a class="nav-link" asp-area="" asp-page="/Index">Hjem</a>
                         </li>
 
-                        @if (User.Identity?.IsAuthenticated == true && (User.IsInRole("Admin") || User.IsInRole("SysAdmin") || User.IsInRole("Leder")))
+                        @if (User.Identity?.IsAuthenticated == true && (User.IsInRole("Admin") || User.IsInRole("Leder")))
+                        {
+                            <li class="nav-item">
+                                <a class="nav-link" asp-area="" asp-page="/SelfEvaluations/Index">Evalueringer</a>
+                            </li>
+                        }
+
+                        @if (User.Identity?.IsAuthenticated == true && (User.IsInRole("Admin") || User.IsInRole("Leder")))
                         {
                             <li class="nav-item">
                                 <a class="nav-link" asp-area="" asp-page="/Management/Index">Administrationspanel</a>

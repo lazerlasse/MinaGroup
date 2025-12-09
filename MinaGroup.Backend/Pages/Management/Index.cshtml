@@ -13,6 +13,8 @@
     <hr />
 
     @* INDHOLDSSTYRING *@
+    @if (User.Identity?.IsAuthenticated == true && (User.IsInRole("Leder") || User.IsInRole("Admin")))
+    {
     <div class="mb-5">
         <h3 class="mb-3 text-secondary">Indholdsstyring</h3>
         <div class="row g-4">
@@ -34,7 +36,7 @@
     }
 
     @* BRUGERSTYRING *@
-    @if (User.Identity?.IsAuthenticated == true && (User.IsInRole("Admin") || User.IsInRole("SysAdmin")))
+    @if (User.Identity?.IsAuthenticated == true && (User.IsInRole("Admin") || User.IsInRole("Leder")))
     {
         <div class="mb-5">
             <h3 class="mb-3 text-secondary">Brugerstyring</h3>
@@ -58,7 +60,7 @@
     }
 
     @* SERVICES & INTEGRATIONER – kun Admin/SysAdmin *@
-    @if (User.Identity?.IsAuthenticated == true && (User.IsInRole("Admin") || User.IsInRole("SysAdmin")))
+    @if (User.Identity?.IsAuthenticated == true && User.IsInRole("Admin"))
     {
         <div class="mb-5">
             <h3 class="mb-3 text-secondary">Services & integrationer</h3>

@@ -1,9 +1,9 @@
+using System.ComponentModel.DataAnnotations;
+using System.Threading.Tasks;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
-using System.ComponentModel.DataAnnotations;
-using System.Threading.Tasks;
 
 namespace MinaGroup.Backend.Pages.SystemManagement.RoleManagement
 {
@@ -22,9 +22,14 @@ namespace MinaGroup.Backend.Pages.SystemManagement.RoleManagement
 
         public class InputModel
         {
-            [Required(ErrorMessage = "Rollens navn er påkrævet")]
-            [Display(Name = "Rolles navn")]
+            [Required]
+            [Display(Name = "Rollenavn")]
+            [StringLength(256, MinimumLength = 2)]
             public string Name { get; set; } = string.Empty;
+        }
+
+        public void OnGet()
+        {
         }
 
         public async Task<IActionResult> OnPostAsync()
@@ -32,23 +37,28 @@ namespace MinaGroup.Backend.Pages.SystemManagement.RoleManagement
             if (!ModelState.IsValid)
                 return Page();
 
-            if (await _roleManager.RoleExistsAsync(Input.Name))
+            var roleName = Input.Name.Trim();
+
+            // Tjek om rollen allerede findes
+            if (await _roleManager.RoleExistsAsync(roleName))
             {
-                ModelState.AddModelError(string.Empty, "Denne rolle findes allerede.");
+                ModelState.AddModelError(string.Empty, "Der findes allerede en rolle med dette navn.");
                 return Page();
             }
 
-            var result = await _roleManager.CreateAsync(new IdentityRole(Input.Name));
-            if (result.Succeeded)
+            var result = await _roleManager.CreateAsync(new IdentityRole(roleName));
+
+            if (!result.Succeeded)
             {
-                TempData["SuccessMessage"] = "Rollen blev oprettet.";
-                return RedirectToPage("./Index");
+                foreach (var error in result.Errors)
+                {
+                    ModelState.AddModelError(string.Empty, error.Description);
+                }
+
+                return Page();
             }
 
-            foreach (var error in result.Errors)
-                ModelState.AddModelError(string.Empty, error.Description);
-
-            return Page();
+            return RedirectToPage("Index");
         }
     }
 }

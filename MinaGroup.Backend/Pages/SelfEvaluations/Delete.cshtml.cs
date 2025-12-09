@@ -1,11 +1,13 @@
 ﻿using System;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using MinaGroup.Backend.Data;
+using MinaGroup.Backend.Helpers;
 using MinaGroup.Backend.Models;
 
 namespace MinaGroup.Backend.Pages.SelfEvaluations
@@ -15,11 +17,16 @@ namespace MinaGroup.Backend.Pages.SelfEvaluations
     {
         private readonly AppDbContext _context;
         private readonly ILogger<DeleteModel> _logger;
+        private readonly UserManager<AppUser> _userManager;
 
-        public DeleteModel(AppDbContext context, ILogger<DeleteModel> logger)
+        public DeleteModel(
+            AppDbContext context,
+            ILogger<DeleteModel> logger,
+            UserManager<AppUser> userManager)
         {
             _context = context;
             _logger = logger;
+            _userManager = userManager;
         }
 
         [BindProperty]
@@ -27,24 +34,31 @@ namespace MinaGroup.Backend.Pages.SelfEvaluations
 
         public async Task<IActionResult> OnGetAsync(int? id)
         {
+            if (id == null)
+            {
+                TempData["ErrorMessage"] = "Ingen evaluering valgt til sletning.";
+                return RedirectToPage("./Index");
+            }
+
             try
             {
-                var userIsInRole = User.IsInRole("Admin") || User.IsInRole("SysAdmin");
-                if (!userIsInRole)
+                var currentUser = await _userManager.GetCurrentUserWithOrganizationAsync(User);
+                if (currentUser == null)
                 {
-                    _logger.LogWarning("Uautoriseret forsøg på at tilgå Delete SelfEvaluation siden.");
+                    TempData["ErrorMessage"] =
+                        "Den aktuelle bruger kunne ikke indlæses eller er ikke tilknyttet en organisation.";
                     return Unauthorized();
                 }
 
-                if (id == null)
-                {
-                    return NotFound("Ingen evaluering valgt til sletning.");
-                }
+                var orgId = currentUser.OrganizationId!.Value;
 
                 var selfevaluation = await _context.SelfEvaluations
                     .Include(e => e.User)
                     .Include(e => e.ApprovedByUser)
-                    .FirstOrDefaultAsync(m => m.Id == id);
+                    .FirstOrDefaultAsync(m =>
+                        m.Id == id.Value &&
+                        m.User != null &&
+                        m.User.OrganizationId == orgId);
 
                 if (selfevaluation == null)
                 {
@@ -72,7 +86,23 @@ namespace MinaGroup.Backend.Pages.SelfEvaluations
 
             try
             {
-                var selfevaluation = await _context.SelfEvaluations.FindAsync(id);
+                var currentUser = await _userManager.GetCurrentUserWithOrganizationAsync(User);
+                if (currentUser == null)
+                {
+                    TempData["ErrorMessage"] =
+                        "Den aktuelle bruger kunne ikke indlæses eller er ikke tilknyttet en organisation.";
+                    return Unauthorized();
+                }
+
+                var orgId = currentUser.OrganizationId!.Value;
+
+                var selfevaluation = await _context.SelfEvaluations
+                    .Include(e => e.User)
+                    .FirstOrDefaultAsync(e =>
+                        e.Id == id.Value &&
+                        e.User != null &&
+                        e.User.OrganizationId == orgId);
+
                 if (selfevaluation != null)
                 {
                     SelfEvaluation = selfevaluation;
