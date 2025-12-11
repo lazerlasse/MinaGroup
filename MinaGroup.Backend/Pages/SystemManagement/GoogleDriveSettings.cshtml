@@ -12,6 +12,21 @@
 
     <hr />
 
+    @if (Model.IsConfigured)
+    {
+        <div class="alert alert-success">
+            <strong>Google Drive klienten er konfigureret.</strong><br />
+            Client ID og Client Secret er gemt og kan bruges af organisationerne.
+        </div>
+    }
+    else
+    {
+        <div class="alert alert-warning">
+            <strong>Google Drive klienten er endnu ikke fuldt konfigureret.</strong><br />
+            Udfyld både <em>Client ID</em> og <em>Client Secret</em> og gem for at aktivere integrationen.
+        </div>
+    }
+
     <div class="row justify-content-center">
         <div class="col-md-8">
             <div class="p-4 border rounded shadow-sm bg-light">

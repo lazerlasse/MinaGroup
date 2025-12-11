@@ -1,80 +1,119 @@
 ﻿@page
 @model MinaGroup.Backend.Pages.Management.ServiceManagement.IndexModel
 @{
-    ViewData["Title"] = "Serviceindstillinger";
+    ViewData["Title"] = "Serviceintegrationer";
 }
 
 <div class="container mt-5">
-    <h1 class="text-center display-4 mb-2 fw-bold text-primary">Serviceindstillinger</h1>
+    <h1 class="text-center display-4 mb-2 fw-bold text-primary">
+        Serviceintegrationer
+    </h1>
     <p class="text-center fs-5 text-muted mb-4">
-        Administrer integrationer for virksomheden.
+        Administrer tilknytning til eksterne tjenester for virksomheden.
     </p>
 
     <hr />
 
+    @* Hvis der mod forventning ikke er en organisation, viser vi en kort besked *@
     @if (Model.CurrentOrganization == null)
     {
         <div class="alert alert-warning">
             Der er ikke tilknyttet nogen virksomhed til din bruger.
         </div>
+
+        <div class="mt-3">
+            <a asp-page="/Management/Index" class="btn btn-outline-secondary">
+                Tilbage til administrationspanel
+            </a>
+        </div>
     }
     else
     {
-        <h3 class="mb-3 text-secondary">Google Drive integration</h3>
+        <div class="mb-3">
+            <span class="text-muted">
+                Aktiv organisation:
+            </span>
+            <strong>@Model.CurrentOrganization.Name</strong>
+            @if (!string.IsNullOrWhiteSpace(Model.CurrentOrganization.OrganizationAdress))
+            {
+                <span class="text-muted">
+                    – @Model.CurrentOrganization.OrganizationAdress,
+                    @Model.CurrentOrganization.PostalCode @Model.CurrentOrganization.Town
+                </span>
+            }
+        </div>
 
         <div class="row g-4">
+            @* --- Google Drive card --- *@
             <div class="col-md-6">
                 <div class="card shadow-sm border-0 h-100">
                     <div class="card-body d-flex flex-column">
                         <h5 class="card-title text-primary fw-bold">
-                            Google Drive – @Model.CurrentOrganization.Name
+                            Google Drive
                         </h5>
 
-                        @if (Model.GoogleDriveIntegration?.IsConnected == true)
-                        {
-                            <p class="card-text text-success">
-                                Forbundet til Google Drive
-                                @if (!string.IsNullOrEmpty(Model.GoogleDriveIntegration.ConnectedAccountEmail))
+                        <p class="card-text text-muted mb-3">
+                            Opsæt upload af PDF-rapporter og andre dokumenter fra systemet
+                            til virksomhedens Google Drive-konto.
+                        </p>
+
+                        <p class="mb-3">
+                            @if (Model.GoogleDriveHasRefreshToken)
+                            {
+                                <span class="badge bg-success">Forbundet</span>
+
+                                @if (!string.IsNullOrWhiteSpace(Model.GoogleDriveConnectedAccountEmail))
                                 {
-                                    <span>(@Model.GoogleDriveIntegration.ConnectedAccountEmail)</span>
+                                    <span class="ms-2">
+                                        (@Model.GoogleDriveConnectedAccountEmail)
+                                    </span>
                                 }
-                            </p>
-                        }
-                        else
-                        {
-                            <p class="card-text text-muted">
-                                Ikke forbundet til Google Drive endnu.
-                            </p>
-                        }
 
-                        <form method="post" asp-page-handler="SaveRootFolder" class="mt-3">
-                            <div class="mb-3">
-                                <label class="form-label fw-bold">Root mappe-ID (Google Drive)</label>
-                                <input asp-for="RootFolderId" class="form-control" />
-                                <span class="form-text">
-                                    Angiv evt. mappe-ID hvor PDF-filerne skal placeres. Tom = roden.
+                                @if (!Model.GoogleDriveIsEnabled)
+                                {
+                                    <span class="ms-2 text-warning">
+                                        (Deaktiveret – upload er slået fra)
+                                    </span>
+                                }
+                            }
+                            else
+                            {
+                                <span class="badge bg-secondary">Ikke forbundet</span>
+                                <span class="ms-2 text-muted">
+                                    Klik på "Administrer" for at forbinde til Google Drive.
                                 </span>
-                            </div>
+                            }
+                        </p>
 
-                            <button type="submit" class="btn btn-outline-primary">
-                                Gem mappe-indstilling
-                            </button>
-                        </form>
-
-                        <form method="post" asp-page-handler="ConnectGoogleDrive" class="mt-3">
-                            <button type="submit" class="btn btn-primary">
-                                Forbind / skift Google Drive konto
-                            </button>
-                        </form>
+                        <div class="mt-auto d-flex justify-content-end">
+                            <a asp-page="./GoogleDriveService"
+                               class="btn btn-outline-primary fw-bold">
+                                Administrer Google Drive
+                            </a>
+                        </div>
                     </div>
                 </div>
             </div>
+
+            @* 
+               Fremtidige services:
+               - OneDrive
+               - Dropbox
+               - Andre integrationer
+
+               Du kan kopiere ovenstående card, justere tekst og linke til nye sider
+               når du implementerer dem.
+            *@
+        </div>
+
+        <div class="mt-4">
+            <a asp-page="/Management/Index" class="btn btn-outline-secondary">
+                Tilbage til administrationspanel
+            </a>
         </div>
     }
-
-    <div class="mt-4">
-        <a asp-page="/Management/Index" class="btn btn-outline-secondary">
-            Tilbage til administrationspanel
-        </a>
-    </div>
 </div>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+}

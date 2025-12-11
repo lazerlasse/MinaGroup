@@ -4,7 +4,6 @@ using Microsoft.AspNetCore.Mvc.RazorPages;
 using Microsoft.EntityFrameworkCore;
 using MinaGroup.Backend.Data;
 using MinaGroup.Backend.Models;
-using MinaGroup.Backend.Services;
 using MinaGroup.Backend.Services.Interfaces;
 
 namespace MinaGroup.Backend.Pages.Management.ServiceManagement
@@ -14,91 +13,47 @@ namespace MinaGroup.Backend.Pages.Management.ServiceManagement
     {
         private readonly AppDbContext _context;
         private readonly IOrganizationResolver _orgResolver;
-        private readonly ICryptoService _cryptoService;
 
         public IndexModel(
             AppDbContext context,
-            IOrganizationResolver orgResolver,
-            ICryptoService cryptoService)
+            IOrganizationResolver orgResolver)
         {
             _context = context;
             _orgResolver = orgResolver;
-            _cryptoService = cryptoService;
         }
 
+        /// <summary>
+        /// Den organisation, som den aktuelle admin/leder arbejder i.
+        /// </summary>
         public Organization? CurrentOrganization { get; set; }
-        public OrganizationStorageIntegration? GoogleDriveIntegration { get; set; }
 
-        [BindProperty]
-        public string? RootFolderId { get; set; }
+        // Google Drive status
+        public bool GoogleDriveIsEnabled { get; set; }
+        public bool GoogleDriveHasRefreshToken { get; set; }
+        public string? GoogleDriveConnectedAccountEmail { get; set; }
 
         public async Task<IActionResult> OnGetAsync()
         {
+            // Find organisation for nuværende bruger
             CurrentOrganization = await _orgResolver.GetCurrentOrganizationAsync();
+
             if (CurrentOrganization == null)
             {
                 TempData["ErrorMessage"] = "Der er ikke tilknyttet nogen virksomhed til din bruger.";
                 return RedirectToPage("/Management/Index");
             }
 
-            GoogleDriveIntegration = await _context.OrganizationStorageIntegrations
-                .FirstOrDefaultAsync(x => x.OrganizationId == CurrentOrganization.Id &&
-                                          x.ProviderName == "GoogleDrive");
+            // Simpel status for Google Drive config (global/org-niveau afhængigt af din nuværende model)
+            var cfg = await _context.GoogleDriveConfigs.FirstOrDefaultAsync();
 
-            RootFolderId = GoogleDriveIntegration?.RootFolderId;
+            if (cfg != null)
+            {
+                GoogleDriveIsEnabled = cfg.IsEnabled;
+                GoogleDriveHasRefreshToken = !string.IsNullOrWhiteSpace(cfg.EncryptedRefreshToken);
+                GoogleDriveConnectedAccountEmail = cfg.ConnectedAccountEmail;
+            }
 
             return Page();
-        }
-
-        // Gemmer kun RootFolderId – selve Connect-flowet håndteres af en separat handler (OAuth callback)
-        public async Task<IActionResult> OnPostSaveRootFolderAsync()
-        {
-            CurrentOrganization = await _orgResolver.GetCurrentOrganizationAsync();
-            if (CurrentOrganization == null)
-            {
-                TempData["ErrorMessage"] = "Der er ikke tilknyttet nogen virksomhed til din bruger.";
-                return RedirectToPage("/Management/Index");
-            }
-
-            GoogleDriveIntegration = await _context.OrganizationStorageIntegrations
-                .FirstOrDefaultAsync(x => x.OrganizationId == CurrentOrganization.Id &&
-                                          x.ProviderName == "GoogleDrive");
-
-            if (GoogleDriveIntegration == null)
-            {
-                GoogleDriveIntegration = new OrganizationStorageIntegration
-                {
-                    OrganizationId = CurrentOrganization.Id,
-                    ProviderName = "GoogleDrive",
-                    RootFolderId = RootFolderId
-                };
-                _context.OrganizationStorageIntegrations.Add(GoogleDriveIntegration);
-            }
-            else
-            {
-                GoogleDriveIntegration.RootFolderId = RootFolderId;
-            }
-
-            await _context.SaveChangesAsync();
-
-            TempData["SuccessMessage"] = "Google Drive mappe-indstilling blev gemt.";
-            return RedirectToPage();
-        }
-
-        // Her laver du evt. en handler der kalder din Google OAuth "Connect"-flow:
-        public async Task<IActionResult> OnPostConnectGoogleDriveAsync()
-        {
-            CurrentOrganization = await _orgResolver.GetCurrentOrganizationAsync();
-            if (CurrentOrganization == null)
-            {
-                TempData["ErrorMessage"] = "Der er ikke tilknyttet nogen virksomhed til din bruger.";
-                return RedirectToPage("/Management/Index");
-            }
-
-            // TODO: Redirect til Google OAuth-autorisations-URL med state = orgId
-            // For nu kan vi bare smide en TODO besked:
-            TempData["InfoMessage"] = "Connect-flow til Google Drive er endnu ikke fuldt implementeret.";
-            return RedirectToPage();
         }
     }
 }

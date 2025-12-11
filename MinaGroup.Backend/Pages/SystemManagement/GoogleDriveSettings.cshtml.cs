@@ -1,4 +1,4 @@
-using Microsoft.AspNetCore.Authorization;
+﻿using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
 using Microsoft.EntityFrameworkCore;
@@ -34,6 +34,12 @@ namespace MinaGroup.Backend.Pages.SystemManagement
         /// </summary>
         public string OAuthRedirectUri { get; set; } = string.Empty;
 
+        /// <summary>
+        /// Om den globale Google Drive klient er konfigureret
+        /// (ClientId + krypteret ClientSecret sat).
+        /// </summary>
+        public bool IsConfigured { get; set; } // 👈 NY
+
         public class InputModel
         {
             public string ClientId { get; set; } = string.Empty;
@@ -68,15 +74,19 @@ namespace MinaGroup.Backend.Pages.SystemManagement
             Input = new InputModel
             {
                 ClientId = setting.ClientId,
-                // ClientSecret vises ikke � skal kun udfyldes ved �ndring
+                // ClientSecret vises ikke – skal kun udfyldes ved ændring
                 ClientSecret = string.Empty
             };
 
+            // 👇 evt. skift protocol: "https" hvis du vælger løsning B
             OAuthRedirectUri = Url.Page(
                 "/Management/ServiceManagement/GoogleDriveService",
                 pageHandler: "OAuthCallback",
                 values: null,
                 protocol: Request.Scheme) ?? string.Empty;
+
+            IsConfigured = !string.IsNullOrWhiteSpace(setting.ClientId)
+                           && !string.IsNullOrWhiteSpace(setting.EncryptedClientSecret);
 
             return Page();
         }
@@ -132,7 +142,7 @@ namespace MinaGroup.Backend.Pages.SystemManagement
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Fejl ved gemning af Google Drive systemindstillinger.");
-                ModelState.AddModelError(string.Empty, "Der opstod en uventet fejl. Pr�v igen.");
+                ModelState.AddModelError(string.Empty, "Der opstod en uventet fejl. Prøv igen.");
 
                 OAuthRedirectUri = Url.Page(
                     "/Management/ServiceManagement/GoogleDriveService",

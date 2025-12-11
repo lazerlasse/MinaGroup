@@ -1,9 +1,10 @@
-using Azure.Identity;
+﻿using Azure.Identity;
 using Azure.Extensions.AspNetCore.DataProtection.Blobs;
 using Azure.Extensions.AspNetCore.DataProtection.Keys;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.DataProtection;
+using Microsoft.AspNetCore.HttpOverrides;       // 👈 NY
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Identity.UI.Services;
 using Microsoft.EntityFrameworkCore;
@@ -47,7 +48,7 @@ if (string.IsNullOrWhiteSpace(dpContainerUri) ||
         "DataProtection:BlobUri, KeyVault:VaultUri eller KeyVault:KeyName mangler i konfigurationen.");
 }
 
-// Blob hvor Data Protection keyring gemmes (�n xml-fil i containeren)
+// Blob hvor Data Protection keyring gemmes (én xml-fil i containeren)
 var blobUri = new Uri($"{dpContainerUri.TrimEnd('/')}/keys.xml");
 
 // Key Vault key identifier
@@ -184,6 +185,19 @@ builder.Services.AddScoped<IOrganizationResolver, OrganizationResolver>();
 
 var app = builder.Build();
 
+// ---------- Forwarded Headers (Nginx reverse proxy) ----------
+var forwardOptions = new ForwardedHeadersOptions
+{
+    ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto
+};
+
+// Vi rydder listerne, så alle proxies/netværk accepteres.
+// Når du vil låse det ned, kan du i stedet tilføje KnownProxies/KnownNetworks her.
+forwardOptions.KnownNetworks.Clear();
+forwardOptions.KnownProxies.Clear();
+
+app.UseForwardedHeaders(forwardOptions);
+
 // ---------- Migration + seeding ---------- //
 using (var scope = app.Services.CreateScope())
 {
@@ -215,7 +229,7 @@ app.UseRouting();
 
 app.UseCors("AllowAll");
 
-// Cookie policy f�r auth
+// Cookie policy før auth
 app.UseCookiePolicy();
 
 app.UseAuthentication();
