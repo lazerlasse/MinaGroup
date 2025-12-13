@@ -218,12 +218,18 @@ namespace MinaGroup.Backend.Pages.SelfEvaluations
                         {
                             var pdfBytes = _pdfService.GeneratePdf(evalForPdf);
 
-                            using var ms = new MemoryStream(pdfBytes);
-                            await _googleDriveService.UploadPdfForOrganizationAsync(
-                                evalOrgId,
-                                citizenName,
-                                fileName,
-                                ms);
+                            if (pdfBytes != null)
+                            {
+                                _logger.LogInformation($"PDF data for evaluering med ID: {0} blev oprettet korrekt", evalForPdf.Id.ToString());
+
+                                using var ms = new MemoryStream(pdfBytes);
+                                await _googleDriveService.UploadPdfForOrganizationAsync(
+                                    evalOrgId,
+                                    citizenName,
+                                    fileName,
+                                    ms,
+                                    HttpContext.RequestAborted);
+                            }
                         }
                     }
                 }
