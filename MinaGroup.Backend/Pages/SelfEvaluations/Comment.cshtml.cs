@@ -1,10 +1,11 @@
-using Microsoft.AspNetCore.Authorization;
+ï»¿using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using MinaGroup.Backend.Data;
+using MinaGroup.Backend.Enums;
 using MinaGroup.Backend.Helpers;
 using MinaGroup.Backend.Models;
 using MinaGroup.Backend.Services;
@@ -51,7 +52,7 @@ namespace MinaGroup.Backend.Pages.SelfEvaluations
         [BindProperty]
         public List<int> SelectedTaskIds { get; set; } = [];
 
-        // Maskeret CPR til visning på siden
+        // Maskeret CPR til visning pÃ¥ siden
         public string? MaskedCpr { get; set; }
 
 
@@ -62,7 +63,7 @@ namespace MinaGroup.Backend.Pages.SelfEvaluations
                 // Rollecheck (Admin eller Leder)
                 if (!(User.IsInRole("Leder") || User.IsInRole("Admin")))
                 {
-                    _logger.LogWarning("Unauthorized adgangsforsøg til SelfEvaluation {Id}", id);
+                    _logger.LogWarning("Unauthorized adgangsforsÃ¸g til SelfEvaluation {Id}", id);
                     TempData["ErrorMessage"] = "Du har ikke adgang til denne side.";
                     return Unauthorized();
                 }
@@ -70,7 +71,7 @@ namespace MinaGroup.Backend.Pages.SelfEvaluations
                 var currentUser = await _userManager.GetCurrentUserWithOrganizationAsync(User);
                 if (currentUser == null)
                 {
-                    TempData["ErrorMessage"] = "Den aktuelle bruger kunne ikke indlæses eller mangler organisation.";
+                    TempData["ErrorMessage"] = "Den aktuelle bruger kunne ikke indlÃ¦ses eller mangler organisation.";
                     return Unauthorized();
                 }
 
@@ -86,7 +87,7 @@ namespace MinaGroup.Backend.Pages.SelfEvaluations
 
                 if (evaluation == null)
                 {
-                    TempData["ErrorMessage"] = "Skemaet kunne ikke indlæses, prøv venligst igen!";
+                    TempData["ErrorMessage"] = "Skemaet kunne ikke indlÃ¦ses, prÃ¸v venligst igen!";
                     return NotFound();
                 }
 
@@ -97,14 +98,14 @@ namespace MinaGroup.Backend.Pages.SelfEvaluations
                     .OrderBy(t => t.TaskName)
                     .ToListAsync();
 
-                // Sæt valgte IDs
+                // SÃ¦t valgte IDs
                 SelectedTaskIds = evaluation.SelectedTask
                     .Select(t => t.TaskOptionId)
                     .ToList();
 
                 SelfEvaluation = evaluation;
 
-                // Sæt maskeret CPR vha. CprHelper
+                // SÃ¦t maskeret CPR vha. CprHelper
                 if (SelfEvaluation.User != null)
                 {
                     MaskedCpr = CprHelper.GetMaskedCpr(SelfEvaluation.User, _cryptoService);
@@ -114,8 +115,8 @@ namespace MinaGroup.Backend.Pages.SelfEvaluations
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Fejl ved indlæsning af evaluering med ID: {Id}", id);
-                TempData["ErrorMessage"] = "Der opstod en uventet fejl ved indlæsning af skemaet.";
+                _logger.LogError(ex, "Fejl ved indlÃ¦sning af evaluering med ID: {Id}", id);
+                TempData["ErrorMessage"] = "Der opstod en uventet fejl ved indlÃ¦sning af skemaet.";
                 return RedirectToPage("Index");
             }
         }
@@ -127,13 +128,13 @@ namespace MinaGroup.Backend.Pages.SelfEvaluations
                 var currentUser = await _userManager.GetCurrentUserWithOrganizationAsync(User);
                 if (currentUser == null)
                 {
-                    TempData["ErrorMessage"] = "Den aktuelle bruger kunne ikke indlæses eller mangler organisation.";
+                    TempData["ErrorMessage"] = "Den aktuelle bruger kunne ikke indlÃ¦ses eller mangler organisation.";
                     return Unauthorized();
                 }
 
                 var orgId = currentUser.OrganizationId!.Value;
 
-                // Hent evaluering og sørg for at den tilhører samme organisation
+                // Hent evaluering og sÃ¸rg for at den tilhÃ¸rer samme organisation
                 var evaluation = await _context.SelfEvaluations
                     .Include(se => se.User)
                     .FirstOrDefaultAsync(se => se.Id == id &&
@@ -142,11 +143,11 @@ namespace MinaGroup.Backend.Pages.SelfEvaluations
 
                 if (evaluation == null)
                 {
-                    TempData["ErrorMessage"] = "Evalueringsskemaet kunne ikke indlæses!";
+                    TempData["ErrorMessage"] = "Evalueringsskemaet kunne ikke indlÃ¦ses!";
                     return NotFound();
                 }
 
-                // Opdater felter afhængig af status
+                // Opdater felter afhÃ¦ngig af status
                 if (SelfEvaluation.IsSick)
                 {
                     evaluation.IsSick = true;
@@ -198,63 +199,39 @@ namespace MinaGroup.Backend.Pages.SelfEvaluations
 
                 await _context.SaveChangesAsync();
 
-                // --- Forsøg automatisk upload til Google Drive ---
+                // --- Enqueue upload job (ikke direkte upload her) ---
                 try
                 {
-                    if (evaluation.User?.OrganizationId != null)
-                    {
-                        var evalOrgId = evaluation.User.OrganizationId.Value;
-                        var citizenName = evaluation.User.FullName;
-                        var fileName = $"{evaluation.EvaluationDate:dd.MM.yy}-{citizenName}.pdf";
+                    var queue = HttpContext.RequestServices.GetRequiredService<UploadQueueService>();
 
-                        // Sørg for at vi har de nødvendige data til PDF
-                        var evalForPdf = await _context.SelfEvaluations
-                            .Include(se => se.User)
-                            .Include(se => se.ApprovedByUser)
-                            .Include(se => se.SelectedTask)
-                            .FirstOrDefaultAsync(se => se.Id == evaluation.Id);
+                    var queueItemId = await queue.EnqueueSelfEvaluationUploadAsync(
+                        organizationId: orgId,
+                        selfEvaluationId: evaluation.Id,
+                        providerName: "GoogleDrive",
+                        ct: HttpContext.RequestAborted);
 
-                        if (evalForPdf != null)
-                        {
-                            var pdfBytes = _pdfService.GeneratePdf(evalForPdf);
-
-                            if (pdfBytes != null)
-                            {
-                                _logger.LogInformation($"PDF data for evaluering med ID: {0} blev oprettet korrekt", evalForPdf.Id.ToString());
-
-                                using var ms = new MemoryStream(pdfBytes);
-                                await _googleDriveService.UploadPdfForOrganizationAsync(
-                                    evalOrgId,
-                                    citizenName,
-                                    fileName,
-                                    ms,
-                                    HttpContext.RequestAborted);
-                            }
-                        }
-                    }
+                    TempData["UploadQueueItemId"] = queueItemId;
+                    TempData["InfoMessage"] = "Evalueringen blev godkendt. PDF upload er sat i kÃ¸.";
                 }
-                catch (Exception driveEx)
+                catch (Exception ex)
                 {
-                    // Vi vil ikke blokere brugeren, hvis Drive fejler – fallback er manuel download
-                    _logger.LogError(driveEx,
-                        "Fejl ved upload af selvevaluering {Id} til Google Drive for org {OrgId}.",
-                        evaluation.Id,
-                        evaluation.User?.OrganizationId);
+                    _logger.LogError(ex, "Kunne ikke enqueue upload job. EvalId={EvalId} OrgId={OrgId}", evaluation.Id, orgId);
+                    TempData["WarningMessage"] = "Evalueringen blev godkendt, men upload-job kunne ikke oprettes. Du kan downloade PDF manuelt.";
                 }
 
-                TempData["SuccessMessage"] = "Evalueringen blev opdateret og godkendt med succes.";
+
                 return RedirectToPage("Index");
             }
             catch (DbUpdateException dbEx)
             {
                 _logger.LogError(dbEx, "Databasefejl ved opdatering af SelfEvaluation {Id}", id);
-                TempData["ErrorMessage"] = "Der opstod en fejl ved gemning af ændringerne. Prøv igen.";
+                TempData["ErrorMessage"] = "Der opstod en fejl ved gemning af Ã¦ndringerne. PrÃ¸v igen.";
                 return RedirectToPage("Index");
             }
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Uventet fejl ved opdatering af SelfEvaluation {Id}", id);
-                TempData["ErrorMessage"] = "Der opstod en uventet fejl. Kontakt support hvis problemet fortsætter.";
+                TempData["ErrorMessage"] = "Der opstod en uventet fejl. Kontakt support hvis problemet fortsÃ¦tter.";
                 return RedirectToPage("Index");
             }
         }

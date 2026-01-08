@@ -1,6 +1,6 @@
-﻿using Azure.Identity;
-using Azure.Extensions.AspNetCore.DataProtection.Blobs;
+﻿using Azure.Extensions.AspNetCore.DataProtection.Blobs;
 using Azure.Extensions.AspNetCore.DataProtection.Keys;
+using Azure.Identity;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.DataProtection;
@@ -14,6 +14,7 @@ using MinaGroup.Backend.Infrastructure.Identity;
 using MinaGroup.Backend.Models;
 using MinaGroup.Backend.Options;
 using MinaGroup.Backend.Services;
+using MinaGroup.Backend.Services.Background;
 using MinaGroup.Backend.Services.Interfaces;
 using System.Text;
 
@@ -152,9 +153,11 @@ builder.Services.AddAuthentication(options =>
     };
 });
 
+
 // ---------- MVC / Razor Pages ----------
 builder.Services.AddRazorPages();
 builder.Services.AddControllers();
+
 
 // ---------- CORS (til mobilapp) ----------
 builder.Services.AddCors(options =>
@@ -165,6 +168,7 @@ builder.Services.AddCors(options =>
     });
 });
 
+
 // ---------- Cookie policy ----------
 builder.Services.Configure<CookiePolicyOptions>(options =>
 {
@@ -173,15 +177,27 @@ builder.Services.Configure<CookiePolicyOptions>(options =>
     options.Secure = CookieSecurePolicy.Always;
 });
 
+
 // ---------- PDF Service ---------- //
 builder.Services.AddScoped<SelfEvaluationPdfService>();
+
 
 // ---------- Google Drive Service ---------- //
 builder.Services.AddScoped<IGoogleDriveService, GoogleDriveService>();
 
-// Organization Services.
+
+// ---------- Organization Services. ---------- //
 builder.Services.AddHttpContextAccessor();
 builder.Services.AddScoped<IOrganizationResolver, OrganizationResolver>();
+
+
+// ---------- Upload Service ---------- //
+builder.Services.AddScoped<UploadQueueService>();
+
+
+// ---------- Background Workers ---------- //
+builder.Services.AddHostedService<SelfEvaluationUploadWorker>();
+
 
 var app = builder.Build();
 

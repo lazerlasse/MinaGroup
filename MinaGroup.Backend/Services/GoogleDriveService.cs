@@ -29,14 +29,13 @@ namespace MinaGroup.Backend.Services
             _logger = logger;
         }
 
-        public async Task UploadPdfForOrganizationAsync(
+        public async Task<DriveUploadResult> UploadPdfForOrganizationAsync(
             int organizationId,
             string citizenName,
             string fileName,
             Stream pdfStream,
             CancellationToken cancellationToken = default)
         {
-            // Basic validation
             if (organizationId <= 0)
                 throw new ArgumentOutOfRangeException(nameof(organizationId));
 
@@ -46,7 +45,6 @@ namespace MinaGroup.Backend.Services
             if (pdfStream == null || !pdfStream.CanRead)
                 throw new ArgumentException("pdfStream skal være en læsbar stream.", nameof(pdfStream));
 
-            // Load integration data
             var provider = await _db.IntegrationProviderSettings
                 .AsNoTracking()
                 .FirstOrDefaultAsync(p => p.ProviderName == "GoogleDrive", cancellationToken);
@@ -58,23 +56,25 @@ namespace MinaGroup.Backend.Services
 
             if (provider == null)
             {
-                _logger.LogWarning("GoogleDrive upload: Provider settings mangler (IntegrationProviderSettings). OrgId={OrgId}", organizationId);
-                return;
+                var msg = "Google Drive: Provider settings mangler (IntegrationProviderSettings).";
+                _logger.LogWarning("{Msg} OrgId={OrgId}", msg, organizationId);
+                return DriveUploadResult.Skipped(msg);
             }
 
             if (integration == null || !integration.IsConnected)
             {
-                _logger.LogInformation("GoogleDrive upload: Organization integration mangler/ikke forbundet. OrgId={OrgId}", organizationId);
-                return;
+                var msg = "Google Drive: Organisationen er ikke forbundet.";
+                _logger.LogInformation("{Msg} OrgId={OrgId}", msg, organizationId);
+                return DriveUploadResult.Skipped(msg);
             }
 
             if (string.IsNullOrWhiteSpace(integration.RootFolderId))
             {
-                _logger.LogWarning("GoogleDrive upload: RootFolderId er ikke sat for org. OrgId={OrgId}", organizationId);
-                return;
+                var msg = "Google Drive: RootFolderId er ikke sat for organisationen.";
+                _logger.LogWarning("{Msg} OrgId={OrgId}", msg, organizationId);
+                return DriveUploadResult.Skipped(msg);
             }
 
-            // Decrypt secrets
             string clientId;
             string clientSecret;
             string refreshToken;
@@ -90,21 +90,21 @@ namespace MinaGroup.Backend.Services
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "GoogleDrive upload: Fejl ved dekryptering af credentials. OrgId={OrgId}", organizationId);
-                return;
+                var msg = "Google Drive: Fejl ved dekryptering af credentials.";
+                _logger.LogError(ex, "{Msg} OrgId={OrgId}", msg, organizationId);
+                return DriveUploadResult.Failed(msg);
             }
 
             if (string.IsNullOrWhiteSpace(refreshToken))
             {
-                _logger.LogWarning("GoogleDrive upload: Refresh token mangler. OrgId={OrgId}", organizationId);
-                return;
+                var msg = "Google Drive: Refresh token mangler.";
+                _logger.LogWarning("{Msg} OrgId={OrgId}", msg, organizationId);
+                return DriveUploadResult.Skipped(msg);
             }
 
-            // Ensure stream position
             if (pdfStream.CanSeek)
                 pdfStream.Position = 0;
 
-            // Build OAuth flow + credential
             var flow = new GoogleAuthorizationCodeFlow(new GoogleAuthorizationCodeFlow.Initializer
             {
                 ClientSecrets = new ClientSecrets
@@ -114,65 +114,78 @@ namespace MinaGroup.Backend.Services
                 },
                 Scopes = new[]
                 {
-                    DriveService.Scope.DriveFile,
-                    DriveService.Scope.DriveMetadataReadonly
-                }
+            DriveService.Scope.DriveFile,
+            DriveService.Scope.DriveMetadataReadonly
+        }
             });
 
-            // userId kan være orgId, så tokens caches per org i memory hos google lib (ikke DB)
             var token = new TokenResponse { RefreshToken = refreshToken };
-
             var credential = new UserCredential(flow, $"org-{organizationId}", token);
 
-            // Google lib udsteder access token on-demand via refresh token
             var drive = new DriveService(new BaseClientService.Initializer
             {
                 HttpClientInitializer = credential,
                 ApplicationName = "MinaGroup.Backend"
             });
 
-            // Retry wrapper for transient issues
-            await ExecuteWithRetryAsync(async () =>
+            try
             {
-                // 1) Find/opret undermappe til borger (valgfri)
-                var safeFolderName = SanitizeFolderName(citizenName);
-                var parentFolderId = integration.RootFolderId.Trim();
+                string? uploadedFileId = null;
+                string? citizenFolderId = null;
 
-                var citizenFolderId = await GetOrCreateFolderAsync(
-                    drive,
-                    parentFolderId,
-                    safeFolderName,
-                    cancellationToken);
-
-                // 2) Upload file into citizen folder
-                var driveFile = new Google.Apis.Drive.v3.Data.File
+                await ExecuteWithRetryAsync(async () =>
                 {
-                    Name = fileName.Trim(),
-                    Parents = new List<string> { citizenFolderId }
-                };
+                    var safeFolderName = SanitizeFolderName(citizenName);
+                    var parentFolderId = integration.RootFolderId.Trim();
 
-                var create = drive.Files.Create(driveFile, pdfStream, "application/pdf");
-                create.Fields = "id, name, parents, createdTime, modifiedTime";
+                    citizenFolderId = await GetOrCreateFolderAsync(
+                        drive,
+                        parentFolderId,
+                        safeFolderName,
+                        cancellationToken);
 
-                var uploadProgress = await create.UploadAsync(cancellationToken);
-
-                if (uploadProgress.Status != Google.Apis.Upload.UploadStatus.Completed)
-                {
-                    throw new GoogleApiException("Drive", $"Upload mislykkedes: {uploadProgress.Status} {uploadProgress.Exception?.Message}")
+                    var driveFile = new Google.Apis.Drive.v3.Data.File
                     {
-                        Error = uploadProgress.Exception is GoogleApiException gae ? gae.Error : null
+                        Name = fileName.Trim(),
+                        Parents = new List<string> { citizenFolderId }
                     };
-                }
 
-                var uploaded = create.ResponseBody;
+                    var create = drive.Files.Create(driveFile, pdfStream, "application/pdf");
+                    create.Fields = "id, name, parents, createdTime, modifiedTime";
 
-                _logger.LogInformation(
-                    "GoogleDrive upload: Uploaded {FileName} to folder {FolderId}. DriveFileId={DriveFileId} OrgId={OrgId}",
-                    fileName, citizenFolderId, uploaded?.Id, organizationId);
+                    var uploadProgress = await create.UploadAsync(cancellationToken);
 
-                return 0;
-            }, _logger, cancellationToken);
+                    if (uploadProgress.Status != Google.Apis.Upload.UploadStatus.Completed)
+                    {
+                        throw new GoogleApiException("Drive", $"Upload mislykkedes: {uploadProgress.Status} {uploadProgress.Exception?.Message}")
+                        {
+                            Error = uploadProgress.Exception is GoogleApiException gae ? gae.Error : null
+                        };
+                    }
+
+                    var uploaded = create.ResponseBody;
+                    uploadedFileId = uploaded?.Id;
+
+                    _logger.LogInformation(
+                        "GoogleDrive upload: Uploaded {FileName} to folder {FolderId}. DriveFileId={DriveFileId} OrgId={OrgId}",
+                        fileName, citizenFolderId, uploadedFileId, organizationId);
+
+                    return 0;
+                }, _logger, cancellationToken);
+
+                return DriveUploadResult.Uploaded(
+                    message: "PDF blev uploadet til Google Drive.",
+                    fileId: uploadedFileId,
+                    folderId: citizenFolderId);
+            }
+            catch (Exception ex)
+            {
+                var msg = "Google Drive: Upload fejlede.";
+                _logger.LogError(ex, "{Msg} OrgId={OrgId} File={File}", msg, organizationId, fileName);
+                return DriveUploadResult.Failed($"{msg} {ex.Message}");
+            }
         }
+
 
         private static string SanitizeFolderName(string? name)
         {

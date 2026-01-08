@@ -8,6 +8,7 @@ namespace MinaGroup.Backend.Data
     {
         public AppDbContext(DbContextOptions<AppDbContext> options) : base(options) { }
 
+
         // Selfevaluation and taskoption entities.
         public DbSet<SelfEvaluation> SelfEvaluations { get; set; }
         public DbSet<TaskOption> TaskOptions { get; set; }
@@ -22,6 +23,15 @@ namespace MinaGroup.Backend.Data
 
         // Global Sysadmin setting entities.
         public DbSet<GoogleDriveSystemSetting> GoogleDriveSystemSettings { get; set; } = default!;
+
+
+        // DB Log entities.
+        public DbSet<SelfEvaluationUploadLog> SelfEvaluationUploadLogs => Set<SelfEvaluationUploadLog>();
+
+
+        // Upload data entities.
+        public DbSet<SelfEvaluationUploadQueueItem> SelfEvaluationUploadQueueItems => Set<SelfEvaluationUploadQueueItem>();
+
 
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
@@ -72,6 +82,11 @@ namespace MinaGroup.Backend.Data
                 EncryptedClientSecret = string.Empty,
                 RedirectUri = string.Empty
             });
+
+
+            modelBuilder.Entity<SelfEvaluationUploadQueueItem>()
+                .HasIndex(x => new { x.OrganizationId, x.SelfEvaluationId, x.ProviderName })
+                .IsUnique();
         }
     }
 }

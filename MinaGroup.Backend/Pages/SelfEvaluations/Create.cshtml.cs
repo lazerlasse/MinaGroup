@@ -7,9 +7,12 @@ using Microsoft.Extensions.Logging;
 using MinaGroup.Backend.Data;
 using MinaGroup.Backend.Helpers;
 using MinaGroup.Backend.Models;
+using MinaGroup.Backend.Services;
 using MinaGroup.Backend.Services.Interfaces;
+using MinaGroup.Backend.Enums;
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
 
@@ -23,16 +26,25 @@ namespace MinaGroup.Backend.Pages.SelfEvaluations
         private readonly ILogger<CreateModel> _logger;
         private readonly ICryptoService _cryptoService;
 
+        // 👇 NYT
+        private readonly SelfEvaluationPdfService _pdfService;
+        private readonly IGoogleDriveService _googleDriveService;
+
         public CreateModel(
             AppDbContext context,
             UserManager<AppUser> userManager,
             ILogger<CreateModel> logger,
-            ICryptoService cryptoService)
+            ICryptoService cryptoService,
+            SelfEvaluationPdfService pdfService,                 // 👈 NYT
+            IGoogleDriveService googleDriveService)              // 👈 NYT
         {
             _context = context;
             _userManager = userManager;
             _logger = logger;
             _cryptoService = cryptoService;
+
+            _pdfService = pdfService;
+            _googleDriveService = googleDriveService;
         }
 
         // Route values (bruges til visning og readonly)
@@ -51,13 +63,16 @@ namespace MinaGroup.Backend.Pages.SelfEvaluations
         public List<string> AssistanceOptions { get; } = ["Intet valgt", "Klarer det selv", "Lidt hjælp", "Meget hjælp"];
         public List<string> AidOptions { get; } = ["Nej", "Ja – hvilke?", "Har brug for noget – hvad?"];
 
+
         // Til visning
         public string? UserFullName { get; set; } = string.Empty;
         public string? UserCPRNumber { get; set; } = string.Empty;
         public List<TaskOption>? TaskOptions { get; set; } = [];
 
+
         // Liste af borgere til dropdown (inkl. maskeret CPR)
-        public List<BorgerUserDto> BorgerUsers { get; set; } = new();
+        public List<BorgerUserDto> BorgerUsers { get; set; } = [];
+
 
         public class BorgerUserDto
         {
@@ -65,6 +80,7 @@ namespace MinaGroup.Backend.Pages.SelfEvaluations
             public string FullName { get; set; } = string.Empty;
             public string MaskedCPR { get; set; } = string.Empty;
         }
+
 
         public async Task<IActionResult> OnGet(string? userId, string? evaluationDate)
         {
@@ -233,7 +249,7 @@ namespace MinaGroup.Backend.Pages.SelfEvaluations
                     return RedirectToPage("./Index");
                 }
 
-                // Beregn total tid (bruger din helper)
+                // Beregn total tid
                 if (SelfEvaluation.ArrivalTime.HasValue && SelfEvaluation.DepartureTime.HasValue)
                 {
                     SelfEvaluation.TotalHours = CalculateTotalWorkHours.CalculateTotalHours(
@@ -265,7 +281,38 @@ namespace MinaGroup.Backend.Pages.SelfEvaluations
                 _context.SelfEvaluations.Add(SelfEvaluation);
                 await _context.SaveChangesAsync();
 
-                TempData["SuccessMessage"] = "Evalueringen blev oprettet med succes.";
+                // Upload hvis auto-godkendt
+                if (SelfEvaluation.IsApproved)
+                {
+                    try
+                    {
+                        var queue = HttpContext.RequestServices.GetRequiredService<UploadQueueService>();
+
+                        var queueItemId = await queue.EnqueueSelfEvaluationUploadAsync(
+                            organizationId: orgId,
+                            selfEvaluationId: SelfEvaluation.Id,
+                            providerName: "GoogleDrive",
+                            ct: HttpContext.RequestAborted);
+
+                        TempData["UploadQueueItemId"] = queueItemId;
+                        TempData["InfoMessage"] = "Evalueringen blev oprettet og godkendt. PDF upload er sat i kø.";
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger.LogError(ex, "Kunne ikke enqueue upload job efter Create. EvalId={EvalId} OrgId={OrgId}", SelfEvaluation.Id, orgId);
+                        TempData["WarningMessage"] = "Evalueringen blev oprettet og godkendt, men upload-job kunne ikke oprettes. Du kan downloade PDF manuelt.";
+                    }
+                }
+                else
+                {
+                    TempData["SuccessMessage"] = "Evalueringen blev oprettet med succes.";
+                }
+
+
+
+                if (!SelfEvaluation.IsApproved)
+                    TempData["SuccessMessage"] = "Evalueringen blev oprettet med succes.";
+
                 return RedirectToPage("./Index");
             }
             catch (DbUpdateException dbEx)
