@@ -157,6 +157,7 @@
                     <th>Evalueringsdato</th>
                     <th>Senest opdateret</th>
                     <th>Kommentar fra leder</th>
+                    <th>Upload status</th>
                     <th></th>
                 </tr>
             </thead>
@@ -168,6 +169,12 @@
                         <td>@se.EvaluationDate.ToString("dd.MM.yyyy")</td>
                         <td>@se.LastUpdated.ToString("dd.MM.yyyy HH:mm")</td>
                         <td>@(string.IsNullOrEmpty(se.CommentFromLeader) ? "-" : se.CommentFromLeader)</td>
+                        <td>
+                            <span class="badge bg-secondary se-upload-badge"
+                                  data-se-id="@se.Id">
+                                Indlæser…
+                            </span>
+                        </td>
                         <td>
                             <a class="btn btn-sm btn-outline-primary" asp-page="./Details" asp-route-id="@se.Id">
                                 <i class="bi bi-eye me-1"></i> Vis
@@ -210,4 +217,8 @@
     {
         <div class="alert alert-info">Ingen godkendte evalueringer fundet.</div>
     }
+}
+
+@section Scripts {
+    <script src="~/js/selfevaluation-upload-status.js" asp-append-version="true"></script>
 }

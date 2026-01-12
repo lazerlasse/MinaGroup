@@ -44,7 +44,7 @@ namespace MinaGroup.Backend.Pages.Management.ServiceManagement
             }
 
             // Simpel status for Google Drive config (global/org-niveau afhængigt af din nuværende model)
-            var cfg = await _context.GoogleDriveConfigs.FirstOrDefaultAsync();
+            var cfg = await _context.OrganizationStorageIntegrations.FirstOrDefaultAsync();
 
             if (cfg != null)
             {

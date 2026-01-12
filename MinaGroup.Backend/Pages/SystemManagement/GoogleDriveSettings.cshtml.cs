@@ -28,17 +28,9 @@ namespace MinaGroup.Backend.Pages.SystemManagement
         [BindProperty]
         public InputModel Input { get; set; } = new();
 
-        /// <summary>
-        /// Den redirect URL, som skal registreres i Google Cloud Console
-        /// for OAuth 2.0 klienten. Vises kun til info.
-        /// </summary>
         public string OAuthRedirectUri { get; set; } = string.Empty;
 
-        /// <summary>
-        /// Om den globale Google Drive klient er konfigureret
-        /// (ClientId + krypteret ClientSecret sat).
-        /// </summary>
-        public bool IsConfigured { get; set; } // 👈 NY
+        public bool IsConfigured { get; set; }
 
         public class InputModel
         {
@@ -74,11 +66,9 @@ namespace MinaGroup.Backend.Pages.SystemManagement
             Input = new InputModel
             {
                 ClientId = setting.ClientId,
-                // ClientSecret vises ikke – skal kun udfyldes ved ændring
-                ClientSecret = string.Empty
+                ClientSecret = string.Empty // secret vises ikke igen
             };
 
-            // 👇 evt. skift protocol: "https" hvis du vælger løsning B
             OAuthRedirectUri = Url.Page(
                 "/Management/ServiceManagement/GoogleDriveService",
                 pageHandler: "OAuthCallback",
@@ -93,18 +83,17 @@ namespace MinaGroup.Backend.Pages.SystemManagement
 
         public async Task<IActionResult> OnPostAsync()
         {
-            if (!ModelState.IsValid)
-            {
-                OAuthRedirectUri = Url.Page(
-                    "/Management/ServiceManagement/GoogleDriveService",
-                    pageHandler: "OAuthCallback",
-                    values: null,
-                    protocol: Request.Scheme) ?? string.Empty;
-
-                return Page();
-            }
-
             var ct = HttpContext.RequestAborted;
+
+            // Rebuild redirect uri on validation errors too
+            OAuthRedirectUri = Url.Page(
+                "/Management/ServiceManagement/GoogleDriveService",
+                pageHandler: "OAuthCallback",
+                values: null,
+                protocol: Request.Scheme) ?? string.Empty;
+
+            if (!ModelState.IsValid)
+                return Page();
 
             try
             {
@@ -123,13 +112,6 @@ namespace MinaGroup.Backend.Pages.SystemManagement
                         _logger.LogError(ex, "Fejl ved kryptering af Google Drive Client Secret.");
                         ModelState.AddModelError(nameof(Input.ClientSecret),
                             "Der opstod en fejl ved kryptering af Client Secret.");
-
-                        OAuthRedirectUri = Url.Page(
-                            "/Management/ServiceManagement/GoogleDriveService",
-                            pageHandler: "OAuthCallback",
-                            values: null,
-                            protocol: Request.Scheme) ?? string.Empty;
-
                         return Page();
                     }
                 }
@@ -143,13 +125,6 @@ namespace MinaGroup.Backend.Pages.SystemManagement
             {
                 _logger.LogError(ex, "Fejl ved gemning af Google Drive systemindstillinger.");
                 ModelState.AddModelError(string.Empty, "Der opstod en uventet fejl. Prøv igen.");
-
-                OAuthRedirectUri = Url.Page(
-                    "/Management/ServiceManagement/GoogleDriveService",
-                    pageHandler: "OAuthCallback",
-                    values: null,
-                    protocol: Request.Scheme) ?? string.Empty;
-
                 return Page();
             }
         }

@@ -68,8 +68,16 @@
                 </button>
             </form>
 
+
             @if (Model.Input.HasRefreshToken)
             {
+                <form method="post" asp-page-handler="Reconnect" class="d-inline ms-2">
+                    <button type="submit" class="btn btn-outline-warning"
+                            @(Model.HasGlobalDriveSettings ? null : "disabled")>
+                        Forbind igen (force)
+                    </button>
+                </form>
+
                 <form method="post" asp-page-handler="Disconnect" class="d-inline ms-2">
                     <button type="submit" class="btn btn-outline-danger">
                         Fjern forbindelse

@@ -258,5 +258,49 @@ namespace MinaGroup.Backend.Pages.SelfEvaluations
                 return RedirectToPage("/Management/Index");
             }
         }
+
+
+        // GET: Upload status for selvevalueringer.
+        public async Task<IActionResult> OnGetUploadStatusesAsync([FromQuery] int[] ids)
+        {
+            var currentUser = await _userManager.GetCurrentUserWithOrganizationAsync(User);
+            if (currentUser?.OrganizationId == null)
+                return Unauthorized();
+
+            var orgId = currentUser.OrganizationId.Value;
+
+            // Queue items (seneste state)
+            var queueItems = await _context.SelfEvaluationUploadQueueItems
+                .AsNoTracking()
+                .Where(x => x.OrganizationId == orgId && ids.Contains(x.SelfEvaluationId))
+                .ToListAsync();
+
+            // Seneste log (hvis du vil vise fejltekst)
+            var lastLogs = await _context.SelfEvaluationUploadLogs
+                .AsNoTracking()
+                .Where(x => x.OrganizationId == orgId && ids.Contains(x.SelfEvaluationId))
+                .GroupBy(x => x.SelfEvaluationId)
+                .Select(g => g.OrderByDescending(x => x.CreatedAtUtc).First())
+                .ToListAsync();
+
+            var result = ids.Select(id =>
+            {
+                var q = queueItems.FirstOrDefault(x => x.SelfEvaluationId == id);
+                var log = lastLogs.FirstOrDefault(x => x.SelfEvaluationId == id);
+
+                // Hvis intet queue item: så enten ikke sat op, eller før feature blev lavet
+                var state = q?.State.ToString() ?? "None";
+                var msg = q?.LastMessage ?? log?.Message ?? "";
+
+                return new
+                {
+                    selfEvaluationId = id,
+                    state,
+                    message = msg
+                };
+            });
+
+            return new JsonResult(result);
+        }
     }
 }

@@ -22,7 +22,6 @@ namespace MinaGroup.Backend.Helpers
             var eval = await db.SelfEvaluations
                 .Include(e => e.User)
                 .Include(e => e.SelectedTask)
-                .Include(e => e.ApprovedByUser)
                 .FirstOrDefaultAsync(e => e.Id == selfEvaluationId, ct);
 
             if (eval == null)
@@ -34,22 +33,20 @@ namespace MinaGroup.Backend.Helpers
             if (eval.User == null)
                 return DriveUploadResult.Failed("Borger-data (User) mangler på evalueringen.");
 
-            // Multi-tenant safety (du validerer allerede org via User.OrganizationId i flowet)
             if (eval.User.OrganizationId != organizationId)
                 return DriveUploadResult.Failed("Sikkerhedsblok: Evalueringen tilhører ikke din organisation.");
 
             var citizenName = eval.User.FullName;
             var fileName = $"Selvevaluering_{citizenName}_{eval.EvaluationDate:yyyy-MM-dd}.pdf";
 
-            // Find attempt nr (så du kan se retry historik)
             var attempt = await db.SelfEvaluationUploadLogs
                 .Where(x => x.SelfEvaluationId == selfEvaluationId && x.ProviderName == "GoogleDrive")
                 .CountAsync(ct) + 1;
 
             try
             {
-                // QuestPDF er sync → run på threadpool
-                var pdfBytes = await Task.Run(() => pdfService.GeneratePdf(eval), ct);
+                // Din PDF-service er sync → vi genererer bytes og uploader async
+                var pdfBytes = pdfService.GeneratePdf(eval);
                 await using var stream = new MemoryStream(pdfBytes);
 
                 var result = await googleDriveService.UploadPdfForOrganizationAsync(
@@ -59,7 +56,6 @@ namespace MinaGroup.Backend.Helpers
                     pdfStream: stream,
                     cancellationToken: ct);
 
-                // Log altid resultatet
                 db.SelfEvaluationUploadLogs.Add(new SelfEvaluationUploadLog
                 {
                     OrganizationId = organizationId,
@@ -84,7 +80,8 @@ namespace MinaGroup.Backend.Helpers
             catch (Exception ex)
             {
                 var msg = $"PDF-upload flow fejlede: {ex.Message}";
-                logger.LogError(ex, "SelfEval upload flow exception. SelfEvalId={Id} OrgId={OrgId}", selfEvaluationId, organizationId);
+                logger.LogError(ex, "SelfEval upload flow exception. SelfEvalId={Id} OrgId={OrgId}",
+                    selfEvaluationId, organizationId);
 
                 db.SelfEvaluationUploadLogs.Add(new SelfEvaluationUploadLog
                 {

@@ -2,11 +2,13 @@
 {
     public enum UploadJobState
     {
-        Queued = 0,
-        Processing = 1,
-        Retrying = 2,
-        Succeeded = 3,
-        Failed = 4,
-        Cancelled = 5
+        None = 0,
+        Queued = 1,
+        Processing = 2,
+        Retrying = 3,
+        Succeeded = 4,
+        Skipped = 5,     // ✅ ny
+        Failed = 6,
+        Cancelled = 7
     }
 }

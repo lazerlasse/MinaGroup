@@ -18,7 +18,6 @@ namespace MinaGroup.Backend.Data
         public DbSet<Organization> Organizations { get; set; } = default!;
         public DbSet<IntegrationProviderSettings> IntegrationProviderSettings { get; set; } = default!;
         public DbSet<OrganizationStorageIntegration> OrganizationStorageIntegrations { get; set; } = default!;
-        public DbSet<GoogleDriveConfig> GoogleDriveConfigs { get; set; } = default!;
 
 
         // Global Sysadmin setting entities.

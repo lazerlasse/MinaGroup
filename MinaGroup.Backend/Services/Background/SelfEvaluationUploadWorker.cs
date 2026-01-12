@@ -15,11 +15,10 @@ namespace MinaGroup.Backend.Services.Background
         private readonly IServiceScopeFactory _scopeFactory;
         private readonly ILogger<SelfEvaluationUploadWorker> _logger;
 
-        // Tuning
         private const int BatchSize = 5;
         private static readonly TimeSpan PollDelay = TimeSpan.FromSeconds(2);
         private static readonly TimeSpan JobStaleAfter = TimeSpan.FromMinutes(10);
-        private static readonly int MaxAttempts = 8;
+        private const int MaxAttempts = 8;
 
         public SelfEvaluationUploadWorker(IServiceScopeFactory scopeFactory, ILogger<SelfEvaluationUploadWorker> logger)
         {
@@ -38,7 +37,7 @@ namespace MinaGroup.Backend.Services.Background
                     using var scope = _scopeFactory.CreateScope();
                     var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
 
-                    // 1) Gen-queue “stuck” jobs (crash mid-processing)
+                    // 1) Requeue stale jobs
                     var staleCutoff = DateTime.UtcNow - JobStaleAfter;
 
                     var stale = await db.SelfEvaluationUploadQueueItems
@@ -108,7 +107,6 @@ namespace MinaGroup.Backend.Services.Background
             int queueItemId,
             CancellationToken ct)
         {
-            // Hent job (fresh from DB)
             var job = await db.SelfEvaluationUploadQueueItems.FirstOrDefaultAsync(x => x.Id == queueItemId, ct);
             if (job == null) return;
 
@@ -118,10 +116,11 @@ namespace MinaGroup.Backend.Services.Background
             job.LastMessage = "Behandler upload…";
             await db.SaveChangesAsync(ct);
 
+            // attempt++
             job.AttemptCount += 1;
             await db.SaveChangesAsync(ct);
 
-            // Load evaluation (inkl. nødvendige includes til PDF)
+            // Load evaluation
             var evaluation = await db.SelfEvaluations
                 .Include(se => se.User)
                 .Include(se => se.ApprovedByUser)
@@ -130,37 +129,63 @@ namespace MinaGroup.Backend.Services.Background
 
             if (evaluation?.User == null)
             {
-                await WriteLogAndFailAsync(db, job, DriveUploadStatus.Failed, "SelfEvaluation/User mangler.", null, null, ct);
+                await WriteLogAndFinishAsync(db, job, DriveUploadStatus.Failed, "SelfEvaluation/User mangler.", null, null, UploadJobState.Failed, ct);
                 return;
             }
 
-            // Krav: kun upload når godkendt
-            if (!evaluation.IsApproved)
-            {
-                await WriteLogAndFinishAsync(db, job, DriveUploadStatus.Skipped, "Springer over: evalueringen er ikke godkendt.", null, null, succeeded: true, ct: ct);
-                return;
-            }
-
-            // Sikkerhed: org-scope
+            // Security: org-scope
             if (evaluation.User.OrganizationId != job.OrganizationId)
             {
-                await WriteLogAndFailAsync(db, job, DriveUploadStatus.Failed, "Org mismatch: job org != user org.", null, null, ct);
+                await WriteLogAndFinishAsync(db, job, DriveUploadStatus.Failed, "Org mismatch: job org != user org.", null, null, UploadJobState.Failed, ct);
                 return;
             }
 
-            // Build filename
+            // Only upload approved
+            if (!evaluation.IsApproved)
+            {
+                await WriteLogAndFinishAsync(db, job, DriveUploadStatus.Skipped, "Springer over: evalueringen er ikke godkendt.", null, null, UploadJobState.Skipped, ct);
+                return;
+            }
+
+            // Check org integration toggles BEFORE generating PDF
+            var integration = await db.OrganizationStorageIntegrations
+                .AsNoTracking()
+                .FirstOrDefaultAsync(x => x.OrganizationId == job.OrganizationId && x.ProviderName == job.ProviderName, ct);
+
+            if (integration == null)
+            {
+                await WriteLogAndFinishAsync(db, job, DriveUploadStatus.Skipped, "Springer over: Organisationen har ikke en GoogleDrive-integration.", null, null, UploadJobState.Skipped, ct);
+                return;
+            }
+
+            if (!integration.IsConnected || string.IsNullOrWhiteSpace(integration.EncryptedRefreshToken))
+            {
+                await WriteLogAndFinishAsync(db, job, DriveUploadStatus.Skipped, "Springer over: Google Drive er ikke forbundet (mangler refresh token).", null, null, UploadJobState.Skipped, ct);
+                return;
+            }
+
+            if (!integration.IsEnabled)
+            {
+                await WriteLogAndFinishAsync(db, job, DriveUploadStatus.Skipped, "Springer over: Upload til Google Drive er deaktiveret for organisationen.", null, null, UploadJobState.Skipped, ct);
+                return;
+            }
+
+            if (string.IsNullOrWhiteSpace(integration.RootFolderId))
+            {
+                await WriteLogAndFinishAsync(db, job, DriveUploadStatus.Skipped, "Springer over: RootFolderId er ikke sat for organisationen.", null, null, UploadJobState.Skipped, ct);
+                return;
+            }
+
             var citizenName = evaluation.User.FullName;
             var fileName = $"{evaluation.EvaluationDate:dd.MM.yy}-{citizenName}.pdf";
 
             try
             {
-                // Generate PDF (async wrapper)
                 job.LastMessage = "Genererer PDF…";
                 await db.SaveChangesAsync(ct);
 
                 var pdfBytes = await SelfEvaluationPdfAsyncHelper.GeneratePdfAsync(pdfService, evaluation, ct);
 
-                // Upload to Drive
                 job.LastMessage = "Uploader til Google Drive…";
                 await db.SaveChangesAsync(ct);
 
@@ -173,7 +198,7 @@ namespace MinaGroup.Backend.Services.Background
                     pdfStream: ms,
                     cancellationToken: ct);
 
-                // Log attempt
+                // Always log attempt
                 db.SelfEvaluationUploadLogs.Add(new SelfEvaluationUploadLog
                 {
                     OrganizationId = job.OrganizationId,
@@ -187,6 +212,8 @@ namespace MinaGroup.Backend.Services.Background
                     CreatedAtUtc = DateTime.UtcNow
                 });
 
+                await db.SaveChangesAsync(ct);
+
                 if (result.Status == DriveUploadStatus.Uploaded)
                 {
                     job.State = UploadJobState.Succeeded;
@@ -194,27 +221,27 @@ namespace MinaGroup.Backend.Services.Background
                     job.LastDriveFileId = result.DriveFileId;
                     job.LastDriveFolderId = result.DriveFolderId;
                     job.ProcessingStartedAtUtc = null;
-
                     await db.SaveChangesAsync(ct);
                     return;
                 }
 
                 if (result.Status == DriveUploadStatus.Skipped)
                 {
-                    // Skipped = “det er okay” → vi afslutter som success (ingen retry)
-                    job.State = UploadJobState.Succeeded;
+                    job.State = UploadJobState.Skipped;
                     job.LastMessage = result.Message;
+                    job.LastDriveFileId = result.DriveFileId;
+                    job.LastDriveFolderId = result.DriveFolderId;
                     job.ProcessingStartedAtUtc = null;
                     await db.SaveChangesAsync(ct);
                     return;
                 }
 
-                // Failed → retry eller endelig fail
+                // Failed -> retry/backoff
                 await HandleFailureAsync(db, job, result.Message, result.DriveFileId, result.DriveFolderId, ct);
             }
             catch (Exception ex)
             {
-                logger.LogError(ex, "Upload job fejlede. QueueItemId={QueueItemId} EvalId={EvalId}", job.Id, job.SelfEvaluationId);
+                logger.LogError(ex, "Upload job exception. QueueItemId={QueueItemId} EvalId={EvalId}", job.Id, job.SelfEvaluationId);
 
                 db.SelfEvaluationUploadLogs.Add(new SelfEvaluationUploadLog
                 {
@@ -227,11 +254,19 @@ namespace MinaGroup.Backend.Services.Background
                     CreatedAtUtc = DateTime.UtcNow
                 });
 
+                await db.SaveChangesAsync(ct);
+
                 await HandleFailureAsync(db, job, $"Exception: {ex.Message}", null, null, ct);
             }
         }
 
-        private static async Task HandleFailureAsync(AppDbContext db, SelfEvaluationUploadQueueItem job, string message, string? fileId, string? folderId, CancellationToken ct)
+        private static async Task HandleFailureAsync(
+            AppDbContext db,
+            SelfEvaluationUploadQueueItem job,
+            string message,
+            string? fileId,
+            string? folderId,
+            CancellationToken ct)
         {
             job.LastMessage = message;
             job.LastDriveFileId = fileId;
@@ -241,7 +276,7 @@ namespace MinaGroup.Backend.Services.Background
             if (job.AttemptCount >= MaxAttempts)
             {
                 job.State = UploadJobState.Failed;
-                job.NextAttemptAtUtc = DateTime.UtcNow;
+                job.NextAttemptAtUtc = DateTime.UtcNow; // terminal, men hold feltet gyldigt
             }
             else
             {
@@ -254,7 +289,6 @@ namespace MinaGroup.Backend.Services.Background
 
         private static TimeSpan ComputeBackoff(int attemptCount)
         {
-            // 1: 10s, 2: 30s, 3: 1m, 4: 2m, 5: 5m, 6+: 10m
             return attemptCount switch
             {
                 1 => TimeSpan.FromSeconds(10),
@@ -266,7 +300,15 @@ namespace MinaGroup.Backend.Services.Background
             };
         }
 
-        private static async Task WriteLogAndFailAsync(AppDbContext db, SelfEvaluationUploadQueueItem job, DriveUploadStatus status, string message, string? fileId, string? folderId, CancellationToken ct)
+        private static async Task WriteLogAndFinishAsync(
+            AppDbContext db,
+            SelfEvaluationUploadQueueItem job,
+            DriveUploadStatus status,
+            string message,
+            string? fileId,
+            string? folderId,
+            UploadJobState finalState,
+            CancellationToken ct)
         {
             db.SelfEvaluationUploadLogs.Add(new SelfEvaluationUploadLog
             {
@@ -281,29 +323,7 @@ namespace MinaGroup.Backend.Services.Background
                 CreatedAtUtc = DateTime.UtcNow
             });
 
-            job.State = UploadJobState.Failed;
-            job.LastMessage = message;
-            job.ProcessingStartedAtUtc = null;
-
-            await db.SaveChangesAsync(ct);
-        }
-
-        private static async Task WriteLogAndFinishAsync(AppDbContext db, SelfEvaluationUploadQueueItem job, DriveUploadStatus status, string message, string? fileId, string? folderId, bool succeeded, CancellationToken ct)
-        {
-            db.SelfEvaluationUploadLogs.Add(new SelfEvaluationUploadLog
-            {
-                OrganizationId = job.OrganizationId,
-                SelfEvaluationId = job.SelfEvaluationId,
-                ProviderName = job.ProviderName,
-                Status = status,
-                Message = message,
-                DriveFileId = fileId,
-                DriveFolderId = folderId,
-                AttemptNumber = job.AttemptCount,
-                CreatedAtUtc = DateTime.UtcNow
-            });
-
-            job.State = succeeded ? UploadJobState.Succeeded : UploadJobState.Failed;
+            job.State = finalState;
             job.LastMessage = message;
             job.LastDriveFileId = fileId;
             job.LastDriveFolderId = folderId;

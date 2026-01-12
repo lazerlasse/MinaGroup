@@ -114,9 +114,9 @@ namespace MinaGroup.Backend.Services
                 },
                 Scopes = new[]
                 {
-            DriveService.Scope.DriveFile,
-            DriveService.Scope.DriveMetadataReadonly
-        }
+                    // Kun den “smalle” scope
+                    DriveService.Scope.DriveFile
+                }
             });
 
             var token = new TokenResponse { RefreshToken = refreshToken };
@@ -178,6 +178,18 @@ namespace MinaGroup.Backend.Services
                     fileId: uploadedFileId,
                     folderId: citizenFolderId);
             }
+            catch (GoogleApiException gae)
+            {
+                // Typisk her man ser adgangsproblemer hvis folder-id ikke er “tilgængelig” for drive.file
+                var msg =
+                    $"Google Drive: Upload fejlede (GoogleApiException). " +
+                    $"Status={gae.HttpStatusCode}. {gae.Message}";
+
+                _logger.LogError(gae, "{Msg} OrgId={OrgId} File={File} RootFolderId={RootFolderId}",
+                    msg, organizationId, fileName, integration.RootFolderId);
+
+                return DriveUploadResult.Failed(msg);
+            }
             catch (Exception ex)
             {
                 var msg = "Google Drive: Upload fejlede.";
@@ -186,13 +198,11 @@ namespace MinaGroup.Backend.Services
             }
         }
 
-
         private static string SanitizeFolderName(string? name)
         {
             if (string.IsNullOrWhiteSpace(name))
                 return "Ukendt borger";
 
-            // Drive tillader mange tegn, men vi fjerner de mest problematiske / kosmetiske
             var invalid = Path.GetInvalidFileNameChars();
             var cleaned = new string(name.Trim().Where(c => !invalid.Contains(c)).ToArray());
             return string.IsNullOrWhiteSpace(cleaned) ? "Ukendt borger" : cleaned;
@@ -204,8 +214,7 @@ namespace MinaGroup.Backend.Services
             string folderName,
             CancellationToken ct)
         {
-            // Query for folder with same name under parent
-            // NB: drive query requires escaping single quotes
+            // NB: drive query kræver escaping af '
             var escapedName = folderName.Replace("'", "\\'");
             var q =
                 $"mimeType='application/vnd.google-apps.folder' " +
@@ -223,7 +232,6 @@ namespace MinaGroup.Backend.Services
             if (existing != null && !string.IsNullOrWhiteSpace(existing.Id))
                 return existing.Id;
 
-            // Create folder
             var folder = new Google.Apis.Drive.v3.Data.File
             {
                 Name = folderName,
@@ -238,15 +246,11 @@ namespace MinaGroup.Backend.Services
             return created.Id;
         }
 
-        /// <summary>
-        /// Simple retry helper for transient Google/HTTP failures.
-        /// </summary>
         private static async Task<T> ExecuteWithRetryAsync<T>(
             Func<Task<T>> action,
             ILogger logger,
             CancellationToken ct)
         {
-            // Exponential-ish backoff
             var delays = new[]
             {
                 TimeSpan.FromSeconds(1),
@@ -264,27 +268,32 @@ namespace MinaGroup.Backend.Services
                 }
                 catch (GoogleApiException ex) when (IsTransientGoogleError(ex))
                 {
-                    if (attempt >= delays.Length)
-                        throw;
+                    if (attempt >= delays.Length) throw;
 
-                    logger.LogWarning(ex, "GoogleDrive transient fejl (attempt {Attempt}). Retrying in {Delay}…", attempt + 1, delays[attempt]);
+                    logger.LogWarning(ex,
+                        "GoogleDrive transient fejl (attempt {Attempt}). Retrying in {Delay}…",
+                        attempt + 1, delays[attempt]);
+
                     await Task.Delay(delays[attempt], ct);
                 }
                 catch (HttpRequestException ex)
                 {
-                    if (attempt >= delays.Length)
-                        throw;
+                    if (attempt >= delays.Length) throw;
 
-                    logger.LogWarning(ex, "GoogleDrive netværksfejl (attempt {Attempt}). Retrying in {Delay}…", attempt + 1, delays[attempt]);
+                    logger.LogWarning(ex,
+                        "GoogleDrive netværksfejl (attempt {Attempt}). Retrying in {Delay}…",
+                        attempt + 1, delays[attempt]);
+
                     await Task.Delay(delays[attempt], ct);
                 }
                 catch (TaskCanceledException ex) when (!ct.IsCancellationRequested)
                 {
-                    // Timeout
-                    if (attempt >= delays.Length)
-                        throw;
+                    if (attempt >= delays.Length) throw;
 
-                    logger.LogWarning(ex, "GoogleDrive timeout (attempt {Attempt}). Retrying in {Delay}…", attempt + 1, delays[attempt]);
+                    logger.LogWarning(ex,
+                        "GoogleDrive timeout (attempt {Attempt}). Retrying in {Delay}…",
+                        attempt + 1, delays[attempt]);
+
                     await Task.Delay(delays[attempt], ct);
                 }
             }
@@ -292,7 +301,6 @@ namespace MinaGroup.Backend.Services
 
         private static bool IsTransientGoogleError(GoogleApiException ex)
         {
-            // Typical transient statuses: 429 rate limit, 500/502/503/504
             var code = (int)ex.HttpStatusCode;
             return code == 429 || code == 500 || code == 502 || code == 503 || code == 504;
         }
