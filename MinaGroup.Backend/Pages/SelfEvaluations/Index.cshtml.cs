@@ -38,26 +38,26 @@ namespace MinaGroup.Backend.Pages.SelfEvaluations
         }
 
         // Outputs to view
-        public List<MissingEvalView> MissingEvaluations { get; set; } = new();
-        public List<SelfEvaluation> PendingLeaderComments { get; set; } = new();
-        public List<SelfEvaluation> ApprovedEvaluations { get; set; } = new();
-        public List<SelectListItem> BorgerSelectList { get; set; } = new();
+        public List<MissingEvalView> MissingEvaluations { get; set; } = [];
+        public List<SelfEvaluation> PendingLeaderComments { get; set; } = [];
+        public List<SelfEvaluation> ApprovedEvaluations { get; set; } = [];
+        public List<SelectListItem> BorgerSelectList { get; set; } = [];
 
         // Filters / paging (bound from query string)
         [BindProperty(SupportsGet = true)]
         public string? UserFilter { get; set; }
 
+        // Brug pageIndex som querystring-navn for at undgå konflikter med Razor Pages' "page"
         [BindProperty(SupportsGet = true)]
-        public new int Page { get; set; } = 1;
+        public int PageIndex { get; set; } = 1;
 
         [BindProperty(SupportsGet = true)]
         public int PageSize { get; set; } = 25;
 
-        public int CurrentPage => Math.Max(Page, 1);
+        public int CurrentPage => Math.Max(PageIndex, 1);
         public int TotalPages { get; set; } = 1;
 
-
-        public async Task<IActionResult> OnGetAsync(string? userFilter, int page = 1, int pageSize = 25)
+        public async Task<IActionResult> OnGetAsync()
         {
             try
             {
@@ -70,10 +70,9 @@ namespace MinaGroup.Backend.Pages.SelfEvaluations
 
                 var orgId = currentUser.OrganizationId!.Value;
 
-                // normalize & bind
-                UserFilter = userFilter;
-                Page = page <= 0 ? 1 : page;
-                PageSize = (pageSize == 25 || pageSize == 50) ? pageSize : 25;
+                // normalize
+                PageIndex = PageIndex <= 0 ? 1 : PageIndex;
+                PageSize = (PageSize == 25 || PageSize == 50) ? PageSize : 25;
 
                 // 1) Liste over borger-brugere (kun i denne organisation)
                 var borgerUsersAll = await _userManager.GetUsersInRoleAsync("Borger");
@@ -94,7 +93,7 @@ namespace MinaGroup.Backend.Pages.SelfEvaluations
                 var today = DateTime.UtcNow.Date;
                 var borgerIds = borgerUsers.Select(u => u.Id).ToList();
 
-                MissingEvaluations = new List<MissingEvalView>();
+                MissingEvaluations = [];
 
                 if (borgerIds.Any())
                 {
@@ -162,13 +161,7 @@ namespace MinaGroup.Backend.Pages.SelfEvaluations
                 PendingLeaderComments = await _context.SelfEvaluations
                     .Include(se => se.User)
                     .Where(se => se.User.OrganizationId == orgId &&
-                                 se.IsApproved == false &&
-                                 (
-                                     string.IsNullOrEmpty(se.CommentFromLeader)
-                                     || (se.IsSick && string.IsNullOrEmpty(se.SickReason))
-                                     || (se.IsNoShow && string.IsNullOrEmpty(se.NoShowReason))
-                                     || (se.IsOffWork && string.IsNullOrEmpty(se.OffWorkReason))
-                                 ))
+                                 se.IsApproved == false)
                     .OrderByDescending(se => se.EvaluationDate)
                     .AsNoTracking()
                     .ToListAsync();
@@ -187,12 +180,12 @@ namespace MinaGroup.Backend.Pages.SelfEvaluations
                 var totalApproved = await approvedQuery.CountAsync();
                 TotalPages = Math.Max(1, (int)Math.Ceiling(totalApproved / (double)PageSize));
 
-                if (Page > TotalPages)
-                    Page = TotalPages;
+                if (PageIndex > TotalPages)
+                    PageIndex = TotalPages;
 
                 ApprovedEvaluations = await approvedQuery
                     .OrderByDescending(se => se.EvaluationDate)
-                    .Skip((Page - 1) * PageSize)
+                    .Skip((PageIndex - 1) * PageSize)
                     .Take(PageSize)
                     .AsNoTracking()
                     .ToListAsync();
@@ -258,7 +251,6 @@ namespace MinaGroup.Backend.Pages.SelfEvaluations
                 return RedirectToPage("/Management/Index");
             }
         }
-
 
         // GET: Upload status for selvevalueringer.
         public async Task<IActionResult> OnGetUploadStatusesAsync([FromQuery] int[] ids)

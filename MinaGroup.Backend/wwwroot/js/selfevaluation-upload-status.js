@@ -37,10 +37,15 @@
     }
 
     async function fetchAndRender() {
-        const qs = ids.map(i => `ids=${encodeURIComponent(i)}`).join("&");
-        const url = `?handler=UploadStatuses&${qs}`;
+        // Bevar nuværende path + query, og tilføj kun handler + ids
+        const url = new URL(window.location.href);
+        url.searchParams.set("handler", "UploadStatuses");
 
-        const res = await fetch(url, { cache: "no-store" });
+        // Ryd gamle ids (hvis scriptet kører flere gange)
+        url.searchParams.delete("ids");
+        ids.forEach(id => url.searchParams.append("ids", String(id)));
+
+        const res = await fetch(url.toString(), { cache: "no-store" });
         if (!res.ok) return;
 
         const data = await res.json();
@@ -51,16 +56,13 @@
 
             badge.className = "badge se-upload-badge";
             badge.classList.add(...badgeClassForState(item.state).split(" "));
-
             badge.textContent = labelForState(item.state);
             badge.title = item.message || "";
         });
 
         const endStates = ["Succeeded", "Failed", "Cancelled", "None", "Skipped"];
         const allDone = data.every(x => endStates.includes(x.state));
-        if (!allDone) {
-            setTimeout(fetchAndRender, 2000);
-        }
+        if (!allDone) setTimeout(fetchAndRender, 2000);
     }
 
     fetchAndRender();

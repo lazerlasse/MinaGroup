@@ -51,9 +51,9 @@
 <table class="table table-striped">
     <thead>
         <tr>
-            <th>E-mail</th>
             <th>Fornavn</th>
             <th>Efternavn</th>
+            <th>E-mail</th>
             <th>Telefon</th>
             <th>Roller</th>
             <th></th>
@@ -63,9 +63,9 @@
         @foreach (var user in Model.Users)
         {
             <tr>
-                <td>@user.Email</td>
                 <td>@user.FirstName</td>
                 <td>@user.LastName</td>
+                <td>@user.Email</td>
                 <td>@user.PhoneNumber</td>
                 <td>@string.Join(", ", user.Roles)</td>
                 <td>

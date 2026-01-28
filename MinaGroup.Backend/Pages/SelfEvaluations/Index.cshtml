@@ -101,7 +101,7 @@
                                 </a>
                             }
 
-                            @if (User.IsInRole("Leder"))
+                            @if (User.IsInRole("Leder") || User.IsInRole("Admin"))
                             {
                                 <a class="btn btn-sm btn-outline-primary" asp-page="./Comment" asp-route-id="@se.Id">
                                     <i class="bi bi-chat-dots me-1"></i> Udfyld kommentar og godkend
@@ -128,16 +128,16 @@
         <div class="col-auto">
             <label class="visually-hidden">Borger</label>
 
-            <!-- Brug asp-for + asp-items i stedet for manuel <option> med inline C# -->
             <select asp-for="UserFilter" asp-items="Model.BorgerSelectList" class="form-select">
                 <option value="">Vis alle</option>
             </select>
         </div>
 
         <div class="col-auto">
-            <select name="pageSize" class="form-select">
-                <option value="25" asp-selected-when="@(Model.PageSize == 25)">25</option>
-                <option value="50" asp-selected-when="@(Model.PageSize == 50)">50</option>
+            <!-- binder direkte til PageSize property (SupportsGet=true) -->
+            <select asp-for="PageSize" class="form-select">
+                <option value="25">25</option>
+                <option value="50">50</option>
             </select>
         </div>
 
@@ -146,6 +146,9 @@
                 <i class="bi bi-funnel me-1"></i> Filtrer
             </button>
         </div>
+
+        <!-- Nulstil altid paging ved filtrering -->
+        <input type="hidden" name="pageIndex" value="1" />
     </form>
 
     @if (Model.ApprovedEvaluations.Any())
@@ -188,7 +191,6 @@
                                     <i class="bi bi-trash me-1"></i> Slet
                                 </a>
                             }
-                            <!-- NY knap: Download PDF -->
                             <a class="btn btn-sm btn-outline-success" asp-page-handler="Download" asp-route-id="@se.Id">
                                 <i class="bi bi-download me-1"></i> Download
                             </a>
@@ -205,7 +207,10 @@
                 {
                     <li class="page-item @(p == Model.CurrentPage ? "active" : "")">
                         <a class="page-link"
-                           href="?page=@p&pageSize=@Model.PageSize&userFilter=@Model.UserFilter">
+                           asp-page="./Index"
+                           asp-route-pageIndex="@p"
+                           asp-route-pageSize="@Model.PageSize"
+                           asp-route-userFilter="@Model.UserFilter">
                             @p
                         </a>
                     </li>

@@ -86,6 +86,8 @@ namespace MinaGroup.Backend.Pages.Management.UserManagement
                 });
             }
 
+            Users = [.. Users.OrderBy(u => u.FirstName)];
+
             return Page();
         }
 

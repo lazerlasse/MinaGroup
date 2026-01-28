@@ -261,7 +261,15 @@ namespace MinaGroup.Backend.Pages.SelfEvaluations
                 // Auto-godkend hvis udfyldt korrekt
                 if ((SelfEvaluation.IsSick && !string.IsNullOrEmpty(SelfEvaluation.SickReason)) ||
                     (SelfEvaluation.IsNoShow && !string.IsNullOrEmpty(SelfEvaluation.NoShowReason)) ||
-                    (SelfEvaluation.IsOffWork && !string.IsNullOrEmpty(SelfEvaluation.OffWorkReason)))
+                    (SelfEvaluation.IsOffWork && !string.IsNullOrEmpty(SelfEvaluation.OffWorkReason)) ||
+                    (
+                        !SelfEvaluation.IsSick &&
+                        !SelfEvaluation.IsNoShow &&
+                        !SelfEvaluation.IsOffWork &&
+                        SelfEvaluation.ArrivalTime.HasValue &&
+                        SelfEvaluation.DepartureTime.HasValue &&
+                        !string.IsNullOrEmpty(SelfEvaluation.CommentFromLeader)
+                    ))
                 {
                     SelfEvaluation.IsApproved = true;
                     SelfEvaluation.ApprovedByUserId = currentUser.Id;
