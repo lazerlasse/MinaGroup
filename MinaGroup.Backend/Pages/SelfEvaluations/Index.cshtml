@@ -191,9 +191,21 @@
                                     <i class="bi bi-trash me-1"></i> Slet
                                 </a>
                             }
+                            @if (User.IsInRole("Leder"))
+                            {
+                                <a class="btn btn-sm btn-outline-warning" asp-page="./Edit" asp-route-id="@se.Id">
+                                    <i class="bi bi-pencil-square me-1"></i> Opdater Kommentar
+                                </a>
+                            }
                             <a class="btn btn-sm btn-outline-success" asp-page-handler="Download" asp-route-id="@se.Id">
                                 <i class="bi bi-download me-1"></i> Download
                             </a>
+                            <form method="post" asp-page-handler="Reupload" asp-route-id="@se.Id" class="d-inline ms-1">
+                                <button type="submit" class="btn btn-sm btn-outline-info"
+                                        onclick="return confirm('Vil du sætte upload i kø igen? Filen vil blive overskrevet i Google Drive hvis den findes.');">
+                                    <i class="bi bi-arrow-repeat me-1"></i> Upload igen
+                                </button>
+                            </form>
                         </td>
                     </tr>
                 }

@@ -15,6 +15,8 @@ namespace MinaGroup.Backend.Services
 {
     public class GoogleDriveService : IGoogleDriveService
     {
+        private const string ProviderName = "GoogleDrive";
+
         private readonly AppDbContext _db;
         private readonly ICryptoService _cryptoService;
         private readonly ILogger<GoogleDriveService> _logger;
@@ -45,13 +47,15 @@ namespace MinaGroup.Backend.Services
             if (pdfStream == null || !pdfStream.CanRead)
                 throw new ArgumentException("pdfStream skal være en læsbar stream.", nameof(pdfStream));
 
+            // Provider settings (global clientId/secret)
             var provider = await _db.IntegrationProviderSettings
                 .AsNoTracking()
-                .FirstOrDefaultAsync(p => p.ProviderName == "GoogleDrive", cancellationToken);
+                .FirstOrDefaultAsync(p => p.ProviderName == ProviderName, cancellationToken);
 
+            // Org integration (root folder + refresh token + toggles)
             var integration = await _db.OrganizationStorageIntegrations
                 .FirstOrDefaultAsync(i => i.OrganizationId == organizationId &&
-                                          i.ProviderName == "GoogleDrive",
+                                          i.ProviderName == ProviderName,
                                       cancellationToken);
 
             if (provider == null)
@@ -61,7 +65,21 @@ namespace MinaGroup.Backend.Services
                 return DriveUploadResult.Skipped(msg);
             }
 
-            if (integration == null || !integration.IsConnected)
+            if (integration == null)
+            {
+                var msg = "Google Drive: Organisationens integration findes ikke.";
+                _logger.LogInformation("{Msg} OrgId={OrgId}", msg, organizationId);
+                return DriveUploadResult.Skipped(msg);
+            }
+
+            if (!integration.IsEnabled)
+            {
+                var msg = "Google Drive: Upload er slået fra i organisationens indstillinger.";
+                _logger.LogInformation("{Msg} OrgId={OrgId}", msg, organizationId);
+                return DriveUploadResult.Skipped(msg);
+            }
+
+            if (!integration.IsConnected)
             {
                 var msg = "Google Drive: Organisationen er ikke forbundet.";
                 _logger.LogInformation("{Msg} OrgId={OrgId}", msg, organizationId);
@@ -75,6 +93,23 @@ namespace MinaGroup.Backend.Services
                 return DriveUploadResult.Skipped(msg);
             }
 
+            // Validate encrypted values before unprotect (avoids null warnings + clearer errors)
+            if (string.IsNullOrWhiteSpace(provider.EncryptedClientId) ||
+                string.IsNullOrWhiteSpace(provider.EncryptedClientSecret))
+            {
+                var msg = "Google Drive: Provider settings mangler krypteret ClientId/ClientSecret.";
+                _logger.LogWarning("{Msg} OrgId={OrgId}", msg, organizationId);
+                return DriveUploadResult.Failed(msg);
+            }
+
+            if (string.IsNullOrWhiteSpace(integration.EncryptedRefreshToken))
+            {
+                var msg = "Google Drive: Refresh token mangler.";
+                _logger.LogWarning("{Msg} OrgId={OrgId}", msg, organizationId);
+                return DriveUploadResult.Skipped(msg);
+            }
+
+            // Decrypt secrets
             string clientId;
             string clientSecret;
             string refreshToken;
@@ -83,10 +118,7 @@ namespace MinaGroup.Backend.Services
             {
                 clientId = _cryptoService.Unprotect(provider.EncryptedClientId);
                 clientSecret = _cryptoService.Unprotect(provider.EncryptedClientSecret);
-
-                refreshToken = string.IsNullOrWhiteSpace(integration.EncryptedRefreshToken)
-                    ? string.Empty
-                    : _cryptoService.Unprotect(integration.EncryptedRefreshToken);
+                refreshToken = _cryptoService.Unprotect(integration.EncryptedRefreshToken);
             }
             catch (Exception ex)
             {
@@ -97,14 +129,17 @@ namespace MinaGroup.Backend.Services
 
             if (string.IsNullOrWhiteSpace(refreshToken))
             {
-                var msg = "Google Drive: Refresh token mangler.";
+                var msg = "Google Drive: Refresh token er tom efter dekryptering.";
                 _logger.LogWarning("{Msg} OrgId={OrgId}", msg, organizationId);
                 return DriveUploadResult.Skipped(msg);
             }
 
+            // Ensure stream position
             if (pdfStream.CanSeek)
                 pdfStream.Position = 0;
 
+            // Build OAuth flow + credential
+            // ✅ Vi holder os til DriveFile scope => ingen reconnect nødvendig.
             var flow = new GoogleAuthorizationCodeFlow(new GoogleAuthorizationCodeFlow.Initializer
             {
                 ClientSecrets = new ClientSecrets
@@ -114,7 +149,6 @@ namespace MinaGroup.Backend.Services
                 },
                 Scopes = new[]
                 {
-                    // Kun den “smalle” scope
                     DriveService.Scope.DriveFile
                 }
             });
@@ -136,28 +170,75 @@ namespace MinaGroup.Backend.Services
                 await ExecuteWithRetryAsync(async () =>
                 {
                     var safeFolderName = SanitizeFolderName(citizenName);
-                    var parentFolderId = integration.RootFolderId.Trim();
+                    var parentFolderId = integration.RootFolderId!.Trim();
 
+                    // 1) Find/opret borgermappe
                     citizenFolderId = await GetOrCreateFolderAsync(
                         drive,
                         parentFolderId,
                         safeFolderName,
                         cancellationToken);
 
+                    // 2) Find eksisterende fil med samme navn (for overskriv)
+                    var trimmedFileName = fileName.Trim();
+
+                    var existingFileId = await FindFileIdByNameAsync(
+                        drive,
+                        citizenFolderId,
+                        trimmedFileName,
+                        cancellationToken);
+
+                    if (pdfStream.CanSeek)
+                        pdfStream.Position = 0;
+
+                    if (!string.IsNullOrWhiteSpace(existingFileId))
+                    {
+                        // Overskriv eksisterende fil via Update (media upload)
+                        var metadata = new Google.Apis.Drive.v3.Data.File
+                        {
+                            Name = trimmedFileName
+                        };
+
+                        var update = drive.Files.Update(metadata, existingFileId, pdfStream, "application/pdf");
+                        // ✅ Brug kun 'modifiedTime' i fields; vi læser via ModifiedTimeDateTimeOffset i response/list.
+                        update.Fields = "id, name, parents, modifiedTime";
+
+                        var progress = await update.UploadAsync(cancellationToken);
+
+                        if (progress.Status != Google.Apis.Upload.UploadStatus.Completed)
+                        {
+                            throw new GoogleApiException("Drive", $"Update upload mislykkedes: {progress.Status} {progress.Exception?.Message}")
+                            {
+                                Error = progress.Exception is GoogleApiException gae ? gae.Error : null
+                            };
+                        }
+
+                        var updated = update.ResponseBody;
+                        uploadedFileId = updated?.Id ?? existingFileId;
+
+                        _logger.LogInformation(
+                            "GoogleDrive upload: Updated existing {FileName} in folder {FolderId}. DriveFileId={DriveFileId} OrgId={OrgId}",
+                            trimmedFileName, citizenFolderId, uploadedFileId, organizationId);
+
+                        return 0;
+                    }
+
+                    // Opret ny fil via Create
                     var driveFile = new Google.Apis.Drive.v3.Data.File
                     {
-                        Name = fileName.Trim(),
+                        Name = trimmedFileName,
                         Parents = new List<string> { citizenFolderId }
                     };
 
                     var create = drive.Files.Create(driveFile, pdfStream, "application/pdf");
-                    create.Fields = "id, name, parents, createdTime, modifiedTime";
+                    // ✅ Undgå createdTime/modifiedTime obsolete properties i vores kode. (feltet 'modifiedTime' er ok)
+                    create.Fields = "id, name, parents, modifiedTime";
 
                     var uploadProgress = await create.UploadAsync(cancellationToken);
 
                     if (uploadProgress.Status != Google.Apis.Upload.UploadStatus.Completed)
                     {
-                        throw new GoogleApiException("Drive", $"Upload mislykkedes: {uploadProgress.Status} {uploadProgress.Exception?.Message}")
+                        throw new GoogleApiException("Drive", $"Create upload mislykkedes: {uploadProgress.Status} {uploadProgress.Exception?.Message}")
                         {
                             Error = uploadProgress.Exception is GoogleApiException gae ? gae.Error : null
                         };
@@ -167,28 +248,17 @@ namespace MinaGroup.Backend.Services
                     uploadedFileId = uploaded?.Id;
 
                     _logger.LogInformation(
-                        "GoogleDrive upload: Uploaded {FileName} to folder {FolderId}. DriveFileId={DriveFileId} OrgId={OrgId}",
-                        fileName, citizenFolderId, uploadedFileId, organizationId);
+                        "GoogleDrive upload: Created {FileName} in folder {FolderId}. DriveFileId={DriveFileId} OrgId={OrgId}",
+                        trimmedFileName, citizenFolderId, uploadedFileId, organizationId);
 
                     return 0;
+
                 }, _logger, cancellationToken);
 
                 return DriveUploadResult.Uploaded(
-                    message: "PDF blev uploadet til Google Drive.",
+                    message: "PDF blev uploadet til Google Drive (oprettet/overskrevet).",
                     fileId: uploadedFileId,
                     folderId: citizenFolderId);
-            }
-            catch (GoogleApiException gae)
-            {
-                // Typisk her man ser adgangsproblemer hvis folder-id ikke er “tilgængelig” for drive.file
-                var msg =
-                    $"Google Drive: Upload fejlede (GoogleApiException). " +
-                    $"Status={gae.HttpStatusCode}. {gae.Message}";
-
-                _logger.LogError(gae, "{Msg} OrgId={OrgId} File={File} RootFolderId={RootFolderId}",
-                    msg, organizationId, fileName, integration.RootFolderId);
-
-                return DriveUploadResult.Failed(msg);
             }
             catch (Exception ex)
             {
@@ -196,6 +266,52 @@ namespace MinaGroup.Backend.Services
                 _logger.LogError(ex, "{Msg} OrgId={OrgId} File={File}", msg, organizationId, fileName);
                 return DriveUploadResult.Failed($"{msg} {ex.Message}");
             }
+        }
+
+        private static async Task<string?> FindFileIdByNameAsync(
+            DriveService drive,
+            string parentFolderId,
+            string fileName,
+            CancellationToken ct)
+        {
+            // Finder kun i den konkrete mappe.
+            // Med drive.file vil dette typisk kun “se” filer appen har adgang til (vores egne) – ønsket adfærd.
+            var escapedName = fileName.Replace("'", "\\'");
+
+            var q =
+                $"name='{escapedName}' " +
+                $"and '{parentFolderId}' in parents " +
+                $"and mimeType='application/pdf' " +
+                $"and trashed=false";
+
+            var listReq = drive.Files.List();
+            listReq.Q = q;
+
+            // ✅ Fields er stadig 'modifiedTime'/'createdTime' på wire-niveau, men vi læser via DateTimeOffset properties.
+            listReq.Fields = "files(id, name, modifiedTime, createdTime)";
+            listReq.PageSize = 10;
+
+            var list = await listReq.ExecuteAsync(ct);
+
+            // Hvis der mod forventning ligger flere med samme navn, vælg nyeste ud fra DateTimeOffset properties.
+            var best = list.Files?
+                .OrderByDescending(GetBestTimestampUtc)
+                .FirstOrDefault();
+
+            return best?.Id;
+        }
+
+        private static DateTimeOffset GetBestTimestampUtc(Google.Apis.Drive.v3.Data.File f)
+        {
+            // ✅ Brug de ikke-obsolete DateTimeOffset properties.
+            // (Hvis en af dem er null, fallback til den anden. Hvis begge null => MinValue)
+            var mod = f.ModifiedTimeDateTimeOffset;
+            if (mod.HasValue) return mod.Value;
+
+            var created = f.CreatedTimeDateTimeOffset;
+            if (created.HasValue) return created.Value;
+
+            return DateTimeOffset.MinValue;
         }
 
         private static string SanitizeFolderName(string? name)
@@ -214,7 +330,6 @@ namespace MinaGroup.Backend.Services
             string folderName,
             CancellationToken ct)
         {
-            // NB: drive query kræver escaping af '
             var escapedName = folderName.Replace("'", "\\'");
             var q =
                 $"mimeType='application/vnd.google-apps.folder' " +
@@ -268,32 +383,26 @@ namespace MinaGroup.Backend.Services
                 }
                 catch (GoogleApiException ex) when (IsTransientGoogleError(ex))
                 {
-                    if (attempt >= delays.Length) throw;
+                    if (attempt >= delays.Length)
+                        throw;
 
-                    logger.LogWarning(ex,
-                        "GoogleDrive transient fejl (attempt {Attempt}). Retrying in {Delay}…",
-                        attempt + 1, delays[attempt]);
-
+                    logger.LogWarning(ex, "GoogleDrive transient fejl (attempt {Attempt}). Retrying in {Delay}…", attempt + 1, delays[attempt]);
                     await Task.Delay(delays[attempt], ct);
                 }
                 catch (HttpRequestException ex)
                 {
-                    if (attempt >= delays.Length) throw;
+                    if (attempt >= delays.Length)
+                        throw;
 
-                    logger.LogWarning(ex,
-                        "GoogleDrive netværksfejl (attempt {Attempt}). Retrying in {Delay}…",
-                        attempt + 1, delays[attempt]);
-
+                    logger.LogWarning(ex, "GoogleDrive netværksfejl (attempt {Attempt}). Retrying in {Delay}…", attempt + 1, delays[attempt]);
                     await Task.Delay(delays[attempt], ct);
                 }
                 catch (TaskCanceledException ex) when (!ct.IsCancellationRequested)
                 {
-                    if (attempt >= delays.Length) throw;
+                    if (attempt >= delays.Length)
+                        throw;
 
-                    logger.LogWarning(ex,
-                        "GoogleDrive timeout (attempt {Attempt}). Retrying in {Delay}…",
-                        attempt + 1, delays[attempt]);
-
+                    logger.LogWarning(ex, "GoogleDrive timeout (attempt {Attempt}). Retrying in {Delay}…", attempt + 1, delays[attempt]);
                     await Task.Delay(delays[attempt], ct);
                 }
             }

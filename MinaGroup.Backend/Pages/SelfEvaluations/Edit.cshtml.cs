@@ -1,21 +1,25 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading.Tasks;
-using Microsoft.AspNetCore.Authorization;
+﻿using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
+using Microsoft.AspNetCore.Mvc.Rendering;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using MinaGroup.Backend.Data;
 using MinaGroup.Backend.Helpers;
 using MinaGroup.Backend.Models;
+using MinaGroup.Backend.Services;
 using MinaGroup.Backend.Services.Interfaces;
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Security.Cryptography;
+using System.Threading.Tasks;
 
 namespace MinaGroup.Backend.Pages.SelfEvaluations
 {
-    [Authorize(Roles = "Admin")]
+    // Udvidet: Leder får adgang, men begrænset redigering (kun CommentFromLeader)
+    [Authorize(Roles = "Admin,Leder")]
     public class EditModel : PageModel
     {
         private readonly AppDbContext _context;
@@ -41,6 +45,10 @@ namespace MinaGroup.Backend.Pages.SelfEvaluations
         [BindProperty]
         public List<int> SelectedTaskIds { get; set; } = [];
 
+        // Leder-only post-field (så vi undgår ModelState fejl pga. manglende disabled inputs)
+        [BindProperty]
+        public string? LeaderComment { get; set; }
+
         public List<TaskOption> TaskOptions { get; set; } = [];
 
         public List<string> ArrivalOptions { get; set; } = ["Intet valgt", "Til tiden", "Forsent", "Aftalt forsinkelse"];
@@ -51,11 +59,13 @@ namespace MinaGroup.Backend.Pages.SelfEvaluations
         // Maskeret CPR til visning (ddMMyy-xxxx)
         public string? MaskedCpr { get; set; }
 
+        // Praktisk flag til view
+        public bool IsAdmin => User.IsInRole("Admin");
+        public bool IsLeader => User.IsInRole("Leder");
+
         public async Task<IActionResult> OnGetAsync(int id)
         {
-            if (!User.IsInRole("Admin"))
-                return Unauthorized();
-
+            // Authorize-attributen håndterer adgang.
             try
             {
                 var currentUser = await _userManager.GetCurrentUserWithOrganizationAsync(User);
@@ -83,7 +93,7 @@ namespace MinaGroup.Backend.Pages.SelfEvaluations
                     return RedirectToPage("./Index");
                 }
 
-                // Hent alle task options for DENNE organisation
+                // Hent alle task options for DENNE organisation (vises også for leder, men er read-only i UI)
                 TaskOptions = await _context.TaskOptions
                     .AsNoTracking()
                     .Where(t => t.OrganizationId == orgId)
@@ -96,6 +106,9 @@ namespace MinaGroup.Backend.Pages.SelfEvaluations
                     .ToList();
 
                 Evaluation = evaluation;
+
+                // LederComment bruges hvis view render leder-version af textarea
+                LeaderComment = Evaluation.CommentFromLeader;
 
                 // Maskeret CPR
                 if (Evaluation.User != null)
@@ -115,7 +128,11 @@ namespace MinaGroup.Backend.Pages.SelfEvaluations
 
         public async Task<IActionResult> OnPostAsync()
         {
-            if (!User.IsInRole("Admin"))
+            // Kun Admin eller Leder (Authorize-attribut), men vi håndhæver her også rollerne eksplicit
+            var isAdmin = User.IsInRole("Admin");
+            var isLeader = User.IsInRole("Leder");
+
+            if (!isAdmin && !isLeader)
                 return Forbid();
 
             var currentUser = await _userManager.GetCurrentUserWithOrganizationAsync(User);
@@ -128,15 +145,9 @@ namespace MinaGroup.Backend.Pages.SelfEvaluations
 
             var orgId = currentUser.OrganizationId!.Value;
 
-            if (!ModelState.IsValid)
-            {
-                await ReloadPageDataAsync(Evaluation.Id);
-                TempData["ErrorMessage"] = "Der opstod en uventet fejl, forsøg venligst igen!.";
-                return Page();
-            }
-
             try
             {
+                // Hent eval fra DB med org-check
                 var evalInDb = await _context.SelfEvaluations
                     .Include(e => e.SelectedTask)
                     .Include(e => e.User)
@@ -149,6 +160,50 @@ namespace MinaGroup.Backend.Pages.SelfEvaluations
                 {
                     TempData["ErrorMessage"] = "Evalueringen kunne ikke findes.";
                     return RedirectToPage("./Index");
+                }
+
+                // Leder: kun CommentFromLeader (og LastUpdated) må ændres
+                if (isLeader && !isAdmin)
+                {
+                    evalInDb.CommentFromLeader = LeaderComment;
+                    evalInDb.LastUpdated = DateTime.Now;
+
+                    await _context.SaveChangesAsync();
+
+                    if (evalInDb.IsApproved)
+                    {
+                        try
+                        {
+                            var queue = HttpContext.RequestServices.GetRequiredService<UploadQueueService>();
+
+                            var queueItemId = await queue.EnqueueOrRequeueSelfEvaluationUploadAsync(
+                                organizationId: orgId,
+                                selfEvaluationId: evalInDb.Id,
+                                providerName: "GoogleDrive",
+                                reason: "Re-upload efter redigering",
+                                ct: HttpContext.RequestAborted);
+
+                            TempData["InfoMessage"] = "Evalueringen blev opdateret. PDF-upload er sat i kø (overskriver eksisterende).";
+
+                            return RedirectToPage("./Index");
+                        }
+                        catch (Exception ex)
+                        {
+                            _logger.LogError(ex, "Kunne ikke enqueue upload job efter Edit. EvalId={EvalId} OrgId={OrgId}", evalInDb.Id, orgId);
+                            TempData["WarningMessage"] = "Evalueringen blev opdateret, men upload-job kunne ikke oprettes. Du kan downloade PDF manuelt.";
+                        }
+                    }
+
+                    TempData["SuccessMessage"] = "Lederkommentaren blev opdateret.";
+                    return RedirectToPage("./Index");
+                }
+
+                // Admin: eksisterende fulde adfærd (uændret)
+                if (!ModelState.IsValid)
+                {
+                    await ReloadPageDataAsync(Evaluation.Id);
+                    TempData["ErrorMessage"] = "Der opstod en uventet fejl, forsøg venligst igen!.";
+                    return Page();
                 }
 
                 // Opdater felter (samme logik som før)
@@ -205,6 +260,30 @@ namespace MinaGroup.Backend.Pages.SelfEvaluations
 
                 await _context.SaveChangesAsync();
 
+                if (evalInDb.IsApproved)
+                {
+                    try
+                    {
+                        var queue = HttpContext.RequestServices.GetRequiredService<UploadQueueService>();
+
+                        var queueItemId = await queue.EnqueueOrRequeueSelfEvaluationUploadAsync(
+                            organizationId: orgId,
+                            selfEvaluationId: evalInDb.Id,
+                            providerName: "GoogleDrive",
+                            reason: "Re-upload efter redigering",
+                            ct: HttpContext.RequestAborted);
+
+                        TempData["InfoMessage"] = "Evalueringen blev opdateret. PDF-upload er sat i kø (overskriver eksisterende).";
+
+                        return RedirectToPage("./Index");
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger.LogError(ex, "Kunne ikke enqueue upload job efter Edit. EvalId={EvalId} OrgId={OrgId}", evalInDb.Id, orgId);
+                        TempData["WarningMessage"] = "Evalueringen blev opdateret, men upload-job kunne ikke oprettes. Du kan downloade PDF manuelt.";
+                    }
+                }
+
                 TempData["SuccessMessage"] = "Evalueringen blev opdateret.";
                 return RedirectToPage("./Index");
             }
@@ -233,6 +312,7 @@ namespace MinaGroup.Backend.Pages.SelfEvaluations
                 TaskOptions = new List<TaskOption>();
                 SelectedTaskIds = new List<int>();
                 MaskedCpr = null;
+                LeaderComment = null;
                 return;
             }
 
@@ -257,6 +337,9 @@ namespace MinaGroup.Backend.Pages.SelfEvaluations
             SelectedTaskIds = Evaluation.SelectedTask
                 .Select(t => t.TaskOptionId)
                 .ToList();
+
+            // LederComment til UI (leder textarea)
+            LeaderComment = Evaluation.CommentFromLeader;
 
             // Sørg for at CPR også er sat efter reload
             if (Evaluation.User != null)

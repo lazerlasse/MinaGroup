@@ -89,6 +89,12 @@ namespace MinaGroup.Backend.Pages.Management.ServiceManagement
 
             var clientId = systemSettings.ClientId?.Trim() ?? string.Empty;
 
+            if (string.IsNullOrWhiteSpace(clientId) || string.IsNullOrWhiteSpace(systemSettings.EncryptedClientSecret))
+            {
+                _logger.LogError("GoogleDrive: Globale system settings mangler ClientId og/eller EncryptedClientSecret.");
+                throw new InvalidOperationException("Global Google Drive klientkonfiguration mangler.");
+            }
+
             string clientSecret;
             try
             {
@@ -100,6 +106,9 @@ namespace MinaGroup.Backend.Pages.Management.ServiceManagement
                 throw;
             }
 
+            // Scopes gemmes kun som info/metadata – selve flowet bruger scopes-arrayet.
+            const string scopes = "drive.file drive.metadata.readonly";
+
             if (provider == null)
             {
                 provider = new IntegrationProviderSettings
@@ -109,7 +118,7 @@ namespace MinaGroup.Backend.Pages.Management.ServiceManagement
                     EncryptedClientSecret = _crypto.Protect(clientSecret),
                     AuthorizationEndpoint = null,
                     TokenEndpoint = null,
-                    Scopes = "drive.file drive.metadata.readonly"
+                    Scopes = scopes
                 };
                 _context.IntegrationProviderSettings.Add(provider);
             }
@@ -117,7 +126,7 @@ namespace MinaGroup.Backend.Pages.Management.ServiceManagement
             {
                 provider.EncryptedClientId = _crypto.Protect(clientId);
                 provider.EncryptedClientSecret = _crypto.Protect(clientSecret);
-                provider.Scopes = "drive.file drive.metadata.readonly";
+                provider.Scopes = scopes;
             }
 
             await _context.SaveChangesAsync(ct);
@@ -204,8 +213,9 @@ namespace MinaGroup.Backend.Pages.Management.ServiceManagement
             {
                 await EnsureProviderSettingsRowAsync(systemSettings, ct);
             }
-            catch
+            catch (Exception ex)
             {
+                _logger.LogError(ex, "GoogleDrive: Could not ensure provider settings row.");
                 TempData["ErrorMessage"] = "Kunne ikke klargøre ProviderSettings. Tjek logs.";
                 return RedirectToPage();
             }
@@ -252,9 +262,10 @@ namespace MinaGroup.Backend.Pages.Management.ServiceManagement
                     }
                 });
 
+            // Base URL
             var authUrl = flow.CreateAuthorizationCodeRequest(redirectUri).Build().ToString();
 
-            // ✅ VIGTIGT: add offline + consent (for refresh token)
+            // ✅ Offline + consent (kræves for at få refresh token) - uden at bruge properties der ikke findes i lib
             authUrl = SetOrReplaceQuery(authUrl, "access_type", "offline");
             authUrl = SetOrReplaceQuery(authUrl, "prompt", "consent");
             authUrl = SetOrReplaceQuery(authUrl, "include_granted_scopes", "true");
@@ -441,6 +452,7 @@ namespace MinaGroup.Backend.Pages.Management.ServiceManagement
                     var kv = part.Split('=', 2);
                     var k = Uri.UnescapeDataString(kv[0]);
                     var v = kv.Length > 1 ? Uri.UnescapeDataString(kv[1]) : string.Empty;
+
                     if (!string.Equals(k, key, StringComparison.Ordinal))
                         pairs.Add(new KeyValuePair<string, string>(k, v));
                 }
@@ -448,12 +460,8 @@ namespace MinaGroup.Backend.Pages.Management.ServiceManagement
 
             pairs.Add(new KeyValuePair<string, string>(key, value));
 
+            // ✅ FIX: korrekt key=value (ikke key=value=value)
             var newQuery = string.Join("&",
-                pairs.Select(p => $"{Uri.EscapeDataString(p.Key)}={Uri.EscapeDataString(p.Value)}={Uri.EscapeDataString(p.Value)}"));
-
-            // ⚠️ BUG i din version: ovenstående giver key=value=value
-            // ✅ Fix:
-            newQuery = string.Join("&",
                 pairs.Select(p => $"{Uri.EscapeDataString(p.Key)}={Uri.EscapeDataString(p.Value)}"));
 
             return new UriBuilder(uri) { Query = newQuery }.Uri.ToString();

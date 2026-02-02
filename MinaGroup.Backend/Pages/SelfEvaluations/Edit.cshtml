@@ -3,6 +3,9 @@
 @{
     ViewData["Title"] = "Rediger selvevaluering";
     Layout = "/Pages/Shared/_Layout.cshtml";
+
+    var isAdmin = User.IsInRole("Admin");
+    var readOnly = !isAdmin; // Leder => read-only på alt undtagen CommentFromLeader
 }
 
 <h1 class="text-center display-4 fw-bold text-primary mb-4">@ViewData["Title"]</h1>
@@ -38,39 +41,57 @@
             <!-- IsSick -->
             <div class="mb-3 form-check">
                 <label class="form-check-label fw-bold" asp-for="Evaluation.IsSick"></label>
-                <input asp-for="Evaluation.IsSick" type="checkbox" class="form-check-input" id="SelfEvaluation_IsSick" />
+                <input asp-for="Evaluation.IsSick"
+                       type="checkbox"
+                       class="form-check-input"
+                       id="SelfEvaluation_IsSick"
+                       disabled="@(readOnly ? "disabled" : null)" />
                 <span asp-validation-for="Evaluation.IsSick" class="text-danger"></span>
             </div>
 
             <div class="mb-3" id="sickReasonSection" style="display:none;">
                 <label class="form-label fw-bold" asp-for="Evaluation.SickReason"></label>
-                <input asp-for="Evaluation.SickReason" class="form-control" />
+                <input asp-for="Evaluation.SickReason"
+                       class="form-control"
+                       readonly="@(readOnly ? "readonly" : null)" />
                 <span asp-validation-for="Evaluation.SickReason" class="text-danger"></span>
             </div>
 
             <!-- IsNoShow -->
             <div class="mb-3 form-check">
                 <label class="form-check-label fw-bold" asp-for="Evaluation.IsNoShow"></label>
-                <input class="form-check-input me-2" type="checkbox" asp-for="Evaluation.IsNoShow" id="SelfEvaluation_IsNoShow" />
+                <input class="form-check-input me-2"
+                       type="checkbox"
+                       asp-for="Evaluation.IsNoShow"
+                       id="SelfEvaluation_IsNoShow"
+                       disabled="@(readOnly ? "disabled" : null)" />
                 <span asp-validation-for="Evaluation.IsNoShow" class="text-danger"></span>
             </div>
 
             <div class="mb-3" id="noShowReasonSection" style="display:none;">
                 <label class="form-label fw-bold" asp-for="Evaluation.NoShowReason"></label>
-                <input asp-for="Evaluation.NoShowReason" class="form-control" />
+                <input asp-for="Evaluation.NoShowReason"
+                       class="form-control"
+                       readonly="@(readOnly ? "readonly" : null)" />
                 <span asp-validation-for="Evaluation.NoShowReason" class="text-danger"></span>
             </div>
 
             <!-- IsOffWork -->
             <div class="mb-3 form-check">
                 <label class="form-check-label fw-bold" asp-for="Evaluation.IsOffWork"></label>
-                <input class="form-check-input me-2" type="checkbox" asp-for="Evaluation.IsOffWork" id="SelfEvaluation_IsOffWork" />
+                <input class="form-check-input me-2"
+                       type="checkbox"
+                       asp-for="Evaluation.IsOffWork"
+                       id="SelfEvaluation_IsOffWork"
+                       disabled="@(readOnly ? "disabled" : null)" />
                 <span asp-validation-for="Evaluation.IsOffWork" class="text-danger"></span>
             </div>
 
             <div class="mb-3" id="offWorkReasonSection" style="display:none;">
                 <label class="form-label fw-bold" asp-for="Evaluation.OffWorkReason"></label>
-                <input asp-for="Evaluation.OffWorkReason" class="form-control" />
+                <input asp-for="Evaluation.OffWorkReason"
+                       class="form-control"
+                       readonly="@(readOnly ? "readonly" : null)" />
                 <span asp-validation-for="Evaluation.OffWorkReason" class="text-danger"></span>
             </div>
 
@@ -78,14 +99,22 @@
                 <!-- ArrivalTime -->
                 <div class="mb-3">
                     <label asp-for="Evaluation.ArrivalTime" class="form-label fw-bold"></label>
-                    <input asp-for="Evaluation.ArrivalTime" type="time" class="form-control" id="SelfEvaluation_ArrivalTime" />
+                    <input asp-for="Evaluation.ArrivalTime"
+                           type="time"
+                           class="form-control"
+                           id="SelfEvaluation_ArrivalTime"
+                           disabled="@(readOnly ? "disabled" : null)" />
                     <span asp-validation-for="Evaluation.ArrivalTime" class="text-danger"></span>
                 </div>
 
                 <!-- DepartureTime -->
                 <div class="mb-3">
                     <label asp-for="Evaluation.DepartureTime" class="form-label fw-bold"></label>
-                    <input asp-for="Evaluation.DepartureTime" type="time" class="form-control" id="SelfEvaluation_DepartureTime" />
+                    <input asp-for="Evaluation.DepartureTime"
+                           type="time"
+                           class="form-control"
+                           id="SelfEvaluation_DepartureTime"
+                           disabled="@(readOnly ? "disabled" : null)" />
                     <span asp-validation-for="Evaluation.DepartureTime" class="text-danger"></span>
                 </div>
 
@@ -100,21 +129,31 @@
                 <!-- HadBreak -->
                 <div class="mb-3 form-check">
                     <label class="form-check-label fw-bold" asp-for="Evaluation.HadBreak"></label>
-                    <input asp-for="Evaluation.HadBreak" type="checkbox" class="form-check-input" id="SelfEvaluation_HadBreak" />
+                    <input asp-for="Evaluation.HadBreak"
+                           type="checkbox"
+                           class="form-check-input"
+                           id="SelfEvaluation_HadBreak"
+                           disabled="@(readOnly ? "disabled" : null)" />
                     <span asp-validation-for="Evaluation.HadBreak" class="text-danger"></span>
                 </div>
 
                 <!-- BreakDuration -->
                 <div class="mb-3" id="breakDurationSection">
                     <label asp-for="Evaluation.BreakDuration" class="form-label fw-bold"></label>
-                    <input asp-for="Evaluation.BreakDuration" type="time" class="form-control" id="SelfEvaluation_BreakDuration" />
+                    <input asp-for="Evaluation.BreakDuration"
+                           type="time"
+                           class="form-control"
+                           id="SelfEvaluation_BreakDuration"
+                           disabled="@(readOnly ? "disabled" : null)" />
                     <span asp-validation-for="Evaluation.BreakDuration" class="text-danger"></span>
                 </div>
 
                 <!-- ArrivalStatus -->
                 <div class="mb-3">
                     <label asp-for="Evaluation.ArrivalStatus" class="form-label fw-bold"></label>
-                    <select asp-for="Evaluation.ArrivalStatus" class="form-select">
+                    <select asp-for="Evaluation.ArrivalStatus"
+                            class="form-select"
+                            disabled="@(readOnly ? "disabled" : null)">
                         @foreach (var option in Model.ArrivalOptions)
                         {
                             <option value="@option" selected="@(option == Model.Evaluation.ArrivalStatus ? "selected" : null)">
@@ -127,7 +166,9 @@
                 <!-- Collaboration -->
                 <div class="mb-3">
                     <label asp-for="Evaluation.Collaboration" class="form-label fw-bold"></label>
-                    <select asp-for="Evaluation.Collaboration" class="form-select">
+                    <select asp-for="Evaluation.Collaboration"
+                            class="form-select"
+                            disabled="@(readOnly ? "disabled" : null)">
                         @foreach (var option in Model.CollaborationOptions)
                         {
                             <option value="@option" selected="@(option == Model.Evaluation.Collaboration ? "selected" : null)">
@@ -140,7 +181,9 @@
                 <!-- Assistance -->
                 <div class="mb-3">
                     <label asp-for="Evaluation.Assistance" class="form-label fw-bold"></label>
-                    <select asp-for="Evaluation.Assistance" class="form-select">
+                    <select asp-for="Evaluation.Assistance"
+                            class="form-select"
+                            disabled="@(readOnly ? "disabled" : null)">
                         @foreach (var option in Model.AssistanceOptions)
                         {
                             <option value="@option" selected="@(option == Model.Evaluation.Assistance ? "selected" : null)">
@@ -153,7 +196,10 @@
                 <!-- Aid -->
                 <div class="mb-3">
                     <label asp-for="Evaluation.Aid" class="form-label fw-bold"></label>
-                    <select asp-for="Evaluation.Aid" class="form-select" id="SelfEvaluation_Aid">
+                    <select asp-for="Evaluation.Aid"
+                            class="form-select"
+                            id="SelfEvaluation_Aid"
+                            disabled="@(readOnly ? "disabled" : null)">
                         @foreach (var option in Model.AidOptions)
                         {
                             <option value="@option" selected="@(option == Model.Evaluation.Aid ? "selected" : null)">
@@ -166,21 +212,30 @@
                 <!-- AidDescription -->
                 <div class="mb-3" id="aidDescriptionSection" style="display:none;">
                     <label asp-for="Evaluation.AidDescription" class="form-label fw-bold"></label>
-                    <input asp-for="Evaluation.AidDescription" class="form-control" id="SelfEvaluation_AidDescription" />
+                    <input asp-for="Evaluation.AidDescription"
+                           class="form-control"
+                           id="SelfEvaluation_AidDescription"
+                           readonly="@(readOnly ? "readonly" : null)" />
                     <span asp-validation-for="Evaluation.AidDescription" class="text-danger"></span>
                 </div>
 
                 <!-- HadDiscomfort -->
                 <div class="mb-3 form-check">
                     <label class="form-check-label fw-bold" asp-for="Evaluation.HadDiscomfort"></label>
-                    <input asp-for="Evaluation.HadDiscomfort" type="checkbox" class="form-check-input" id="SelfEvaluation_HadDiscomfort" />
+                    <input asp-for="Evaluation.HadDiscomfort"
+                           type="checkbox"
+                           class="form-check-input"
+                           id="SelfEvaluation_HadDiscomfort"
+                           disabled="@(readOnly ? "disabled" : null)" />
                     <span asp-validation-for="Evaluation.HadDiscomfort" class="text-danger"></span>
                 </div>
 
                 <!-- DiscomfortDescription -->
                 <div class="mb-3" id="discomfortDescriptionSection">
                     <label asp-for="Evaluation.DiscomfortDescription" class="form-label fw-bold"></label>
-                    <input asp-for="Evaluation.DiscomfortDescription" class="form-control" />
+                    <input asp-for="Evaluation.DiscomfortDescription"
+                           class="form-control"
+                           readonly="@(readOnly ? "readonly" : null)" />
                     <span asp-validation-for="Evaluation.DiscomfortDescription" class="text-danger"></span>
                 </div>
 
@@ -198,7 +253,8 @@
                                            type="checkbox"
                                            name="SelectedTaskIds"
                                            value="@t.TaskOptionId"
-                                           @(isChecked ? "checked" : null) />
+                                           @(isChecked ? "checked" : null)
+                                           disabled="@(readOnly ? "disabled" : null)" />
                                     <label class="form-check-label">@t.TaskName</label>
                                 </div>
                             }
@@ -216,15 +272,27 @@
                 <!-- NextMeetingNotes -->
                 <div class="mb-3">
                     <label asp-for="Evaluation.NextMeetingNotes" class="form-label fw-bold"></label>
-                    <input asp-for="Evaluation.NextMeetingNotes" class="form-control" />
+                    <input asp-for="Evaluation.NextMeetingNotes"
+                           class="form-control"
+                           readonly="@(readOnly ? "readonly" : null)" />
                     <span asp-validation-for="Evaluation.NextMeetingNotes" class="text-danger"></span>
                 </div>
 
                 <!-- CommentFromLeader -->
                 <div class="mb-3">
                     <label asp-for="Evaluation.CommentFromLeader" class="form-label fw-bold"></label>
-                    <textarea asp-for="Evaluation.CommentFromLeader" class="form-control"></textarea>
-                    <span asp-validation-for="Evaluation.CommentFromLeader" class="text-danger"></span>
+
+                    @* Admin: samme som før *@
+                    @if (isAdmin)
+                    {
+                        <textarea asp-for="Evaluation.CommentFromLeader" class="form-control"></textarea>
+                        <span asp-validation-for="Evaluation.CommentFromLeader" class="text-danger"></span>
+                    }
+                    else
+                    {
+                        @* Leder: kun dette felt kan postes/ændres *@
+                        <textarea class="form-control" name="LeaderComment">@Model.LeaderComment</textarea>
+                    }
                 </div>
             </div>
 
@@ -254,6 +322,6 @@
 @section Scripts {
     @await Html.PartialAsync("_ValidationScriptsPartial");
 
-    <!-- JS som styrer vis/skjul og beregner TotalHours (samme fil som tidligere) -->
+    <!-- JS som styrer vis/skjul og beregner TotalHours -->
     <script src="~/js/selfevaluation-form.js"></script>
 }

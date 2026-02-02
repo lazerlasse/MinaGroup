@@ -204,10 +204,11 @@ namespace MinaGroup.Backend.Pages.SelfEvaluations
                 {
                     var queue = HttpContext.RequestServices.GetRequiredService<UploadQueueService>();
 
-                    var queueItemId = await queue.EnqueueSelfEvaluationUploadAsync(
+                    var queueItemId = await queue.EnqueueOrRequeueSelfEvaluationUploadAsync(
                         organizationId: orgId,
                         selfEvaluationId: evaluation.Id,
                         providerName: "GoogleDrive",
+                        reason: null,
                         ct: HttpContext.RequestAborted);
 
                     TempData["UploadQueueItemId"] = queueItemId;

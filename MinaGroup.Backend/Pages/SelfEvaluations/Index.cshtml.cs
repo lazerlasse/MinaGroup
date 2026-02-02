@@ -24,17 +24,20 @@ namespace MinaGroup.Backend.Pages.SelfEvaluations
         private readonly UserManager<AppUser> _userManager;
         private readonly SelfEvaluationPdfService _pdfService;
         private readonly ILogger<IndexModel> _logger;
+        private readonly UploadQueueService _uploadQueue;
 
         public IndexModel(
             AppDbContext context,
             UserManager<AppUser> userManager,
             SelfEvaluationPdfService pdfService,
-            ILogger<IndexModel> logger)
+            ILogger<IndexModel> logger,
+            UploadQueueService uploadQueue)
         {
             _context = context ?? throw new ArgumentNullException(nameof(context));
             _userManager = userManager ?? throw new ArgumentNullException(nameof(userManager));
             _pdfService = pdfService ?? throw new ArgumentNullException(nameof(pdfService));
             _logger = logger ?? throw new ArgumentNullException(nameof(logger));
+            _uploadQueue = uploadQueue;
         }
 
         // Outputs to view
@@ -293,6 +296,51 @@ namespace MinaGroup.Backend.Pages.SelfEvaluations
             });
 
             return new JsonResult(result);
+        }
+
+        // POST: Reupload skeamer til drev.
+        public async Task<IActionResult> OnPostReuploadAsync(int id)
+        {
+            try
+            {
+                var currentUser = await _userManager.GetCurrentUserWithOrganizationAsync(User);
+                if (currentUser?.OrganizationId == null)
+                    return Unauthorized();
+
+                var orgId = currentUser.OrganizationId.Value;
+
+                // Hent evalueringen og verify org-scope
+                var eval = await _context.SelfEvaluations
+                    .Include(se => se.User)
+                    .FirstOrDefaultAsync(se => se.Id == id);
+
+                if (eval?.User == null || eval.User.OrganizationId != orgId)
+                    return NotFound();
+
+                // Kun mening hvis godkendt (du kan vælge at tillade ellers)
+                if (!eval.IsApproved)
+                {
+                    TempData["WarningMessage"] = "Skemaet er ikke godkendt endnu, så det kan ikke uploades.";
+                    return RedirectToPage();
+                }
+
+                // Enqueue/requeue
+                var queueItemId = await _uploadQueue.EnqueueOrRequeueSelfEvaluationUploadAsync(
+                    organizationId: orgId,
+                    selfEvaluationId: eval.Id,
+                    providerName: "GoogleDrive",
+                    reason: "Manuel re-upload fra oversigten",
+                    ct: HttpContext.RequestAborted);
+
+                TempData["InfoMessage"] = $"Upload-job er sat i kø (JobId: {queueItemId}).";
+                return RedirectToPage();
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Kunne ikke requeue upload job. EvalId={EvalId}", id);
+                TempData["WarningMessage"] = "Kunne ikke oprette upload-job. Prøv igen.";
+                return RedirectToPage();
+            }
         }
     }
 }
